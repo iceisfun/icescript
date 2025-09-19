@@ -454,26 +454,27 @@ func (p *Parser) parseStmt() Stmt {
 		return &ForInStmt{VarName: varName, Iterable: iter, Body: body, P: pos}
 	}
 
-	// assignment: IDENT '=' expr
-	if p.cur.Kind == IDENT && p.peekTok.Literal == "=" {
-		pos := p.cur.Position
-		name := p.cur.Literal
-		p.next()              // IDENT
-		p.next()              // '='
-		val := p.parseExpr(0) // RHS
+	// expression or assignment
+	ex := p.parseExpr(0)
+	if p.cur.Literal == "=" {
+		assignable := isAssignableExpr(ex)
+		pos := ex.Pos()
+		eqTok := p.cur
+		p.next()
+		val := p.parseExpr(0)
 		if p.cur.Literal == ";" {
 			p.next()
 		}
-		return &AssignStmt{Name: name, Value: val, P: pos}
+		if !assignable {
+			p.errf(eqTok.Position, "invalid assignment target")
+			return &ExprStmt{X: ex, P: pos}
+		}
+		return &AssignStmt{Target: ex, Value: val, P: pos}
 	}
-
-	// expression statement
-	pos := p.cur.Position
-	ex := p.parseExpr(0)
 	if p.cur.Literal == ";" {
 		p.next()
 	}
-	return &ExprStmt{X: ex, P: pos}
+	return &ExprStmt{X: ex, P: ex.Pos()}
 }
 
 // precedence table
@@ -519,6 +520,15 @@ func (p *Parser) parseExpr(minPrec int) Expr {
 		left = &BinaryExpr{Op: op, Left: left, Right: right, P: opTok.Position}
 	}
 	return left
+}
+
+func isAssignableExpr(e Expr) bool {
+	switch e.(type) {
+	case *Ident, *MemberExpr, *IndexExpr:
+		return true
+	default:
+		return false
+	}
 }
 
 func isBinaryOpLiteral(s string) bool {
@@ -792,16 +802,8 @@ func (vm *VM) execBlock(env map[string]Value, blk *BlockStmt) (Value, error) {
 			if err != nil {
 				return VNull(), err
 			}
-			if _, ok := env[s.Name]; !ok {
-				if _, g := vm.globals[s.Name]; !g {
-					return VNull(), vm.rtErr(s.P, "assignment to undefined identifier %q", s.Name)
-				}
-			}
-			// prefer local shadow
-			if _, ok := env[s.Name]; ok {
-				env[s.Name] = v
-			} else {
-				vm.globals[s.Name] = v
+			if err := vm.assignValue(env, s.Target, v); err != nil {
+				return VNull(), err
 			}
 
 		case *ForInStmt:
@@ -846,6 +848,80 @@ func kindName(k ValueKind) string {
 		return "object"
 	default:
 		return "unknown"
+	}
+}
+
+func (vm *VM) assignValue(env map[string]Value, target Expr, value Value) error {
+	switch t := target.(type) {
+	case *Ident:
+		if _, ok := env[t.Name]; ok {
+			env[t.Name] = value
+			return nil
+		}
+		if _, ok := vm.globals[t.Name]; ok {
+			vm.globals[t.Name] = value
+			return nil
+		}
+		return vm.rtErr(t.P, "assignment to undefined identifier %q", t.Name)
+	case *MemberExpr:
+		obj, err := vm.evalExpr(env, t.Object)
+		if err != nil {
+			return err
+		}
+		if obj.Kind != ObjectKind {
+			return vm.rtErr(t.P, "cannot set field %q on %s", t.Name, kindName(obj.Kind))
+		}
+		if obj.Obj == nil {
+			obj.Obj = make(map[string]Value)
+		}
+		obj.Obj[t.Name] = value
+		switch parent := t.Object.(type) {
+		case *Ident:
+			if _, ok := env[parent.Name]; ok {
+				env[parent.Name] = obj
+			} else if _, ok := vm.globals[parent.Name]; ok {
+				vm.globals[parent.Name] = obj
+			}
+		case *MemberExpr:
+			return vm.assignValue(env, parent, obj)
+		case *IndexExpr:
+			return vm.assignValue(env, parent, obj)
+		}
+		return nil
+	case *IndexExpr:
+		seq, err := vm.evalExpr(env, t.Seq)
+		if err != nil {
+			return err
+		}
+		idxVal, err := vm.evalExpr(env, t.Index)
+		if err != nil {
+			return err
+		}
+		idx := int(idxVal.AsInt())
+		switch seq.Kind {
+		case ArrayKind:
+			if idx < 0 || idx >= len(seq.Arr) {
+				return vm.rtErr(t.P, "index out of range")
+			}
+			seq.Arr[idx] = value
+		default:
+			return vm.rtErr(t.P, "cannot assign into %s with index", kindName(seq.Kind))
+		}
+		switch parent := t.Seq.(type) {
+		case *Ident:
+			if _, ok := env[parent.Name]; ok {
+				env[parent.Name] = seq
+			} else if _, ok := vm.globals[parent.Name]; ok {
+				vm.globals[parent.Name] = seq
+			}
+		case *MemberExpr:
+			return vm.assignValue(env, parent, seq)
+		case *IndexExpr:
+			return vm.assignValue(env, parent, seq)
+		}
+		return nil
+	default:
+		return vm.rtErr(target.Pos(), "invalid assignment target")
 	}
 }
 

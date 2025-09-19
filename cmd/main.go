@@ -19,6 +19,9 @@ func main() {
 func demo() int {
   print("Player")
   print("Player.Name:", Player.Name, "Life:", Player.Life, "Mana:", Player.Mana)
+  Player.X = Player.X + 1
+  Player.Y = Player.Y + 1
+  print("Player position:", Player.X, Player.Y)
 
   var p = { x: 3, y: 4 }
   print("p:", p, "len:", distance(0, 0, p.x, p.y))
@@ -59,17 +62,18 @@ func demo() int {
 		return icescript.VFloat(math.Hypot(x2-x1, y2-y1)), nil
 	})
 
-	p := Player{Name: "Hero", Life: 100, Mana: 50, X: 0, Y: 0}
+	p := Player{Name: "Hero", Life: 100, Mana: 50, X: 23, Y: -57}
 	vm.SetGlobal("Player", icescript.MustVFromGo(p))
 
 	if err := vm.Compile(src); err != nil {
 		panic(err)
 	}
 
-	out, err := vm.Invoke("demo")
-	if err != nil {
-		panic(err)
+	for range 5 {
+		out, err := vm.Invoke("demo")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("demo() ->", out.AsInt())
 	}
-	fmt.Println("demo() ->", out.AsInt())
-
 }

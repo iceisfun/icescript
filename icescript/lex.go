@@ -143,13 +143,15 @@ func (*VarStmt) stmtNode()       {}
 func (v *VarStmt) Pos() Position { return v.P }
 
 type AssignStmt struct {
-	Name  string // ident only for now
-	Value Expr
-	P     Position
+	Target Expr
+	Value  Expr
+	P      Position
 }
 
-func (*AssignStmt) stmtNode()       {}
-func (a *AssignStmt) Pos() Position { return a.P }
+func (*AssignStmt) stmtNode() {}
+func (a *AssignStmt) Pos() Position {
+	return a.P
+}
 
 type ForInStmt struct {
 	VarName  string
