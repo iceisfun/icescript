@@ -11,7 +11,7 @@ import (
 
 func main() {
 	script := `
-func boom() {
+func boom() int {
   var nums = [1, 0, 2]
   var total = 0
   for n in nums {

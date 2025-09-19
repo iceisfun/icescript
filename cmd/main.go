@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/iceisfun/icescript/icescript"
 	"math"
+
+	"github.com/iceisfun/icescript/icescript"
 )
 
 type Player struct {
@@ -16,7 +17,7 @@ type Player struct {
 
 func main() {
 	src := `
-func demo() int {
+func demo() {
   print("Player")
   print("Player.Name:", Player.Name, "Life:", Player.Life, "Mana:", Player.Mana)
   Player.X = Player.X + 1

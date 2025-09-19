@@ -11,11 +11,11 @@ import (
 
 func main() {
 	const src = `
-func add(a, b int) {
+func add(a, b) {
   return a + b
 }
 
-func twice(x int) {
+func twice(x foobar) {
   return add(x, x)
 }
 `
@@ -33,4 +33,18 @@ func twice(x int) {
 	for name, fn := range program.Funcs {
 		fmt.Printf("- %s (%d params) defined at %d:%d\n", name, len(fn.Params), fn.Start.Line, fn.Start.Column)
 	}
+
+	// run the program calling the 'twice' function
+	vm := icescript.NewVM()
+	if err := vm.Compile(src); err != nil {
+		fmt.Println("load program error:", err)
+		return
+	}
+
+	out, err := vm.Invoke("twice", icescript.VInt(21))
+	if err != nil {
+		fmt.Println("invoke error:", err)
+		return
+	}
+	fmt.Println("twice(21) =", out.String())
 }

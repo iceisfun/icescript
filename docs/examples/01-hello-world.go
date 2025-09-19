@@ -13,7 +13,7 @@ func main() {
 	const src = `
 func main() {
   print("hello from icescript")
-  return null
+  return 42
 }
 `
 

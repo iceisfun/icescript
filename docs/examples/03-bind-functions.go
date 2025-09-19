@@ -12,7 +12,7 @@ import (
 
 func main() {
 	script := `
-func main() {
+func main() float {
   return distance(0, 0, 3, 4)
 }
 `

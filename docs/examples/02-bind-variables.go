@@ -18,7 +18,7 @@ type Player struct {
 
 func main() {
 	script := `
-func move(dx, dy) {
+func move(dx, dy) void {
   Player.X = Player.X + dx
   Player.Y = Player.Y + dy
   return null
