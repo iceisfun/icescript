@@ -17,6 +17,8 @@ const (
 	FloatKind
 	BoolKind
 	StringKind
+	ArrayKind  // NEW
+	ObjectKind // NEW
 )
 
 type Value struct {
@@ -25,13 +27,17 @@ type Value struct {
 	F    float64
 	B    bool
 	S    string
+	Arr  []Value          // NEW
+	Obj  map[string]Value // NEW
 }
 
-func VNull() Value           { return Value{Kind: NullKind} }
-func VInt(v int64) Value     { return Value{Kind: IntKind, I: v} }
-func VFloat(v float64) Value { return Value{Kind: FloatKind, F: v} }
-func VBool(v bool) Value     { return Value{Kind: BoolKind, B: v} }
-func VString(v string) Value { return Value{Kind: StringKind, S: v} }
+func VArray(xs []Value) Value          { return Value{Kind: ArrayKind, Arr: xs} }
+func VObject(m map[string]Value) Value { return Value{Kind: ObjectKind, Obj: m} }
+func VNull() Value                     { return Value{Kind: NullKind} }
+func VInt(v int64) Value               { return Value{Kind: IntKind, I: v} }
+func VFloat(v float64) Value           { return Value{Kind: FloatKind, F: v} }
+func VBool(v bool) Value               { return Value{Kind: BoolKind, B: v} }
+func VString(v string) Value           { return Value{Kind: StringKind, S: v} }
 func (v Value) String() string {
 	switch v.Kind {
 	case IntKind:
@@ -45,10 +51,37 @@ func (v Value) String() string {
 		return "false"
 	case StringKind:
 		return v.S
+	case ArrayKind:
+		var b strings.Builder
+		b.WriteByte('[')
+		for i, e := range v.Arr {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(e.String())
+		}
+		b.WriteByte(']')
+		return b.String()
+	case ObjectKind:
+		var b strings.Builder
+		b.WriteByte('{')
+		i := 0
+		for k, val := range v.Obj {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(k)
+			b.WriteByte(':')
+			b.WriteString(val.String())
+			i++
+		}
+		b.WriteByte('}')
+		return b.String()
 	default:
 		return "null"
 	}
 }
+
 func (v Value) AsFloat() float64 {
 	switch v.Kind {
 	case FloatKind:
@@ -370,16 +403,73 @@ func (p *Parser) parseStmt() Stmt {
 		pos := p.cur.Position
 		p.next()
 		ex := p.parseExpr(0)
-		// optional semicolon
 		if p.cur.Literal == ";" {
 			p.next()
 		}
 		return &ReturnStmt{Expr: ex, P: pos}
 	}
+
+	// var name (= expr)?
+	if p.cur.Literal == "var" || p.cur.Kind == VAR {
+		pos := p.cur.Position
+		p.next()
+		if p.cur.Kind != IDENT {
+			p.errf(p.cur.Position, "expected identifier after var")
+			return nil
+		}
+		name := p.cur.Literal
+		p.next()
+		var init Expr = &NullLit{P: pos}
+		if p.cur.Literal == "=" {
+			p.next()
+			init = p.parseExpr(0)
+		}
+		if p.cur.Literal == ";" {
+			p.next()
+		}
+		return &VarStmt{Name: name, Init: init, P: pos}
+	}
+
+	// for x in iterable { ... }
+	if p.cur.Literal == "for" || p.cur.Kind == FOR {
+		pos := p.cur.Position
+		p.next()
+		if p.cur.Kind != IDENT {
+			p.errf(p.cur.Position, "expected loop variable name")
+			return nil
+		}
+		varName := p.cur.Literal
+		p.next()
+		if !(p.cur.Literal == "in") { // keep it simple; treat 'in' as a literal
+			p.errf(p.cur.Position, "expected 'in' after loop variable")
+			return nil
+		}
+		p.next()
+		iter := p.parseExpr(0)
+		if p.cur.Literal != "{" {
+			p.errf(p.cur.Position, "expected '{' to start for-body")
+			return nil
+		}
+		body := p.parseBlock()
+		return &ForInStmt{VarName: varName, Iterable: iter, Body: body, P: pos}
+	}
+
+	// assignment: IDENT '=' expr
+	if p.cur.Kind == IDENT && p.peekTok.Literal == "=" {
+		pos := p.cur.Position
+		name := p.cur.Literal
+		p.next()              // IDENT
+		p.next()              // '='
+		val := p.parseExpr(0) // RHS
+		if p.cur.Literal == ";" {
+			p.next()
+		}
+		return &AssignStmt{Name: name, Value: val, P: pos}
+	}
+
 	// expression statement
 	pos := p.cur.Position
 	ex := p.parseExpr(0)
-	// optional semicolon
 	if p.cur.Literal == ";" {
 		p.next()
 	}
@@ -483,12 +573,13 @@ func kindToOp(k TokenKind) string {
 }
 
 func (p *Parser) parsePrimary() Expr {
+	var left Expr
 	t := p.cur
 	switch {
 	case t.Kind == IDENT:
-		// could be ident or call
 		name := t.Literal
 		p.next()
+		// function call ident(...)
 		if p.cur.Literal == "(" {
 			callPos := t.Position
 			p.next()
@@ -504,43 +595,120 @@ func (p *Parser) parsePrimary() Expr {
 			} else {
 				p.next()
 			}
-			return &CallExpr{Callee: name, Args: args, P: callPos}
+			left = &CallExpr{Callee: name, Args: args, P: callPos}
+		} else {
+			left = &Ident{Name: name, P: t.Position}
 		}
-		return &Ident{Name: name, P: t.Position}
 
 	case t.Kind == NUMBER:
 		p.next()
-		return &NumberLit{Raw: t.Literal, P: t.Position}
+		left = &NumberLit{Raw: t.Literal, P: t.Position}
 
 	case t.Kind == STRING:
 		p.next()
-		return &StringLit{Val: t.Literal, P: t.Position}
+		left = &StringLit{Val: t.Literal, P: t.Position}
 
 	case t.Kind == TRUE || strings.EqualFold(t.Literal, "true"):
 		p.next()
-		return &BoolLit{Val: true, P: t.Position}
+		left = &BoolLit{Val: true, P: t.Position}
 
 	case t.Kind == FALSE || strings.EqualFold(t.Literal, "false"):
 		p.next()
-		return &BoolLit{Val: false, P: t.Position}
+		left = &BoolLit{Val: false, P: t.Position}
 
 	case t.Kind == NULL || strings.EqualFold(t.Literal, "null"):
 		p.next()
-		return &NullLit{P: t.Position}
+		left = &NullLit{P: t.Position}
 
 	case t.Literal == "(":
 		p.next()
-		ex := p.parseExpr(0)
+		left = p.parseExpr(0)
 		if p.cur.Literal != ")" {
-			p.errs = append(p.errs, fmt.Errorf("script:%d:%d: expected ')'", p.cur.Position.Line, p.cur.Position.Column))
+			p.errf(p.cur.Position, "expected ')'")
 		} else {
 			p.next()
 		}
-		return ex
+
+	case t.Literal == "[":
+		// array literal
+		start := t.Position
+		p.next()
+		var elems []Expr
+		for p.cur.Literal != "]" && p.cur.Kind != EOF {
+			elems = append(elems, p.parseExpr(0))
+			if p.cur.Literal == "," {
+				p.next()
+			}
+		}
+		if p.cur.Literal != "]" {
+			p.errf(p.cur.Position, "expected ']'")
+		} else {
+			p.next()
+		}
+		left = &ArrayLit{Elems: elems, P: start}
+
+	case t.Literal == "{":
+		// object literal: { ident : expr, ... }
+		start := t.Position
+		p.next()
+		var fields []Field
+		for p.cur.Literal != "}" && p.cur.Kind != EOF {
+			if p.cur.Kind != IDENT {
+				p.errf(p.cur.Position, "expected field name")
+				break
+			}
+			fname := p.cur.Literal
+			fpos := p.cur.Position
+			p.next()
+			if p.cur.Literal != ":" {
+				p.errf(p.cur.Position, "expected ':' after field name")
+				break
+			}
+			p.next()
+			fexpr := p.parseExpr(0)
+			fields = append(fields, Field{Name: fname, Expr: fexpr, P: fpos})
+			if p.cur.Literal == "," {
+				p.next()
+			}
+		}
+		if p.cur.Literal != "}" {
+			p.errf(p.cur.Position, "expected '}'")
+		} else {
+			p.next()
+		}
+		left = &ObjectLit{Fields: fields, P: start}
+
 	default:
 		p.errf(t.Position, "unexpected token %q", t.Literal)
 		p.next()
-		return &NullLit{P: t.Position}
+		left = &NullLit{P: t.Position}
+	}
+
+	// postfix: .field  and  [expr]
+	for {
+		switch p.cur.Literal {
+		case ".":
+			p.next()
+			if p.cur.Kind != IDENT {
+				p.errf(p.cur.Position, "expected identifier after '.'")
+				return left
+			}
+			nameTok := p.cur
+			p.next()
+			left = &MemberExpr{Object: left, Name: nameTok.Literal, P: nameTok.Position}
+		case "[":
+			pos := p.cur.Position
+			p.next()
+			idx := p.parseExpr(0)
+			if p.cur.Literal != "]" {
+				p.errf(p.cur.Position, "expected ']'")
+			} else {
+				p.next()
+			}
+			left = &IndexExpr{Seq: left, Index: idx, P: pos}
+		default:
+			return left
+		}
 	}
 }
 
@@ -604,17 +772,81 @@ func (vm *VM) execBlock(env map[string]Value, blk *BlockStmt) (Value, error) {
 				return VNull(), err
 			}
 			return val, nil
+
 		case *ExprStmt:
 			v, err := vm.evalExpr(env, s.X)
 			if err != nil {
 				return VNull(), err
 			}
 			last = v
+
+		case *VarStmt:
+			v, err := vm.evalExpr(env, s.Init)
+			if err != nil {
+				return VNull(), err
+			}
+			env[s.Name] = v
+
+		case *AssignStmt:
+			v, err := vm.evalExpr(env, s.Value)
+			if err != nil {
+				return VNull(), err
+			}
+			if _, ok := env[s.Name]; !ok {
+				if _, g := vm.globals[s.Name]; !g {
+					return VNull(), vm.rtErr(s.P, "assignment to undefined identifier %q", s.Name)
+				}
+			}
+			// prefer local shadow
+			if _, ok := env[s.Name]; ok {
+				env[s.Name] = v
+			} else {
+				vm.globals[s.Name] = v
+			}
+
+		case *ForInStmt:
+			iter, err := vm.evalExpr(env, s.Iterable)
+			if err != nil {
+				return VNull(), err
+			}
+			switch iter.Kind {
+			case ArrayKind:
+				for _, item := range iter.Arr {
+					env[s.VarName] = item
+					if _, err := vm.execBlock(env, s.Body); err != nil {
+						return VNull(), err
+					}
+				}
+			default:
+				return VNull(), vm.rtErr(s.P, "cannot iterate over %s", kindName(iter.Kind))
+			}
+
 		default:
 			return VNull(), vm.rtErr(st.Pos(), "unsupported statement")
 		}
 	}
 	return last, nil
+}
+
+func kindName(k ValueKind) string {
+	switch k {
+	case NullKind:
+		return "null"
+	case IntKind:
+		return "int"
+	case FloatKind:
+		return "float"
+	case BoolKind:
+		return "bool"
+	case StringKind:
+		return "string"
+	case ArrayKind:
+		return "array"
+	case ObjectKind:
+		return "object"
+	default:
+		return "unknown"
+	}
 }
 
 func (vm *VM) evalExpr(env map[string]Value, e Expr) (Value, error) {
@@ -690,6 +922,61 @@ func (vm *VM) evalExpr(env map[string]Value, e Expr) (Value, error) {
 			return hf(vm, argv)
 		}
 		return VNull(), vm.rtErr(ex.P, "unknown function %q", ex.Callee)
+	case *ArrayLit:
+		xs := make([]Value, len(ex.Elems))
+		for i, e := range ex.Elems {
+			v, err := vm.evalExpr(env, e)
+			if err != nil {
+				return VNull(), err
+			}
+			xs[i] = v
+		}
+		return VArray(xs), nil
+
+	case *ObjectLit:
+		m := make(map[string]Value, len(ex.Fields))
+		for _, f := range ex.Fields {
+			v, err := vm.evalExpr(env, f.Expr)
+			if err != nil {
+				return VNull(), err
+			}
+			m[f.Name] = v
+		}
+		return VObject(m), nil
+
+	case *MemberExpr:
+		obj, err := vm.evalExpr(env, ex.Object)
+		if err != nil {
+			return VNull(), err
+		}
+		if obj.Kind != ObjectKind {
+			return VNull(), vm.rtErr(ex.P, "cannot access field %q on %s", ex.Name, kindName(obj.Kind))
+		}
+		val, ok := obj.Obj[ex.Name]
+		if !ok {
+			return VNull(), vm.rtErr(ex.P, "unknown field %q", ex.Name)
+		}
+		return val, nil
+
+	case *IndexExpr:
+		seq, err := vm.evalExpr(env, ex.Seq)
+		if err != nil {
+			return VNull(), err
+		}
+		idx, err := vm.evalExpr(env, ex.Index)
+		if err != nil {
+			return VNull(), err
+		}
+		switch seq.Kind {
+		case ArrayKind:
+			i := int(idx.AsInt())
+			if i < 0 || i >= len(seq.Arr) {
+				return VNull(), vm.rtErr(ex.P, "index out of range")
+			}
+			return seq.Arr[i], nil
+		default:
+			return VNull(), vm.rtErr(ex.P, "indexing not supported on %s", kindName(seq.Kind))
+		}
 
 	case *BinaryExpr:
 		lv, err := vm.evalExpr(env, ex.Left)

@@ -91,6 +91,76 @@ func (l *Lexer) NextToken() Token {
 	return Token{Kind: ILLEGAL, Literal: string(ch), Position: pos}
 }
 
+// Expressions
+type ArrayLit struct {
+	Elems []Expr
+	P     Position
+}
+
+func (*ArrayLit) exprNode()       {}
+func (a *ArrayLit) Pos() Position { return a.P }
+
+type Field struct {
+	Name string
+	Expr Expr
+	P    Position
+}
+
+type ObjectLit struct {
+	Fields []Field
+	P      Position
+}
+
+func (*ObjectLit) exprNode()       {}
+func (o *ObjectLit) Pos() Position { return o.P }
+
+type MemberExpr struct {
+	Object Expr
+	Name   string
+	P      Position
+}
+
+func (*MemberExpr) exprNode()       {}
+func (m *MemberExpr) Pos() Position { return m.P }
+
+type IndexExpr struct {
+	Seq   Expr
+	Index Expr
+	P     Position
+}
+
+func (*IndexExpr) exprNode()       {}
+func (i *IndexExpr) Pos() Position { return i.P }
+
+// Statements
+type VarStmt struct {
+	Name string
+	Init Expr
+	P    Position
+}
+
+func (*VarStmt) stmtNode()       {}
+func (v *VarStmt) Pos() Position { return v.P }
+
+type AssignStmt struct {
+	Name  string // ident only for now
+	Value Expr
+	P     Position
+}
+
+func (*AssignStmt) stmtNode()       {}
+func (a *AssignStmt) Pos() Position { return a.P }
+
+type ForInStmt struct {
+	VarName  string
+	Iterable Expr
+	Body     *BlockStmt
+	P        Position
+}
+
+func (*ForInStmt) stmtNode()       {}
+func (f *ForInStmt) Pos() Position { return f.P }
+
 func (l *Lexer) readString(pos Position, quote rune) Token {
 	// consume opening quote
 	l.readChar()

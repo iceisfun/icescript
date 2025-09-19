@@ -6,17 +6,36 @@ import (
 	"math"
 )
 
+type Player struct {
+	Name string
+	Life int
+	Mana int
+	X    float64
+	Y    float64
+}
+
 func main() {
 	src := `
-func add(a int, b int) int {
-  print("hello world", "we add", a, b, f, distance(0, 0, 1, 1))
-  return a + b + distance(0, 0, 1, 1)
+func demo() int {
+  var p = { x: 3, y: 4 }
+  print("p:", p, "len:", distance(0, 0, p.x, p.y))
+
+  var nums = [1, 2, 3, 4, 5]
+  var total = 0
+  for n in nums {
+    print("n:", n)
+    total = total + n
+  }
+  print("sum:", total)
+
+  // index access
+  print("first:", nums[0], "last:", nums[4])
+
+  return total
 }
 `
-
 	vm := icescript.NewVM()
 
-	// host function
 	vm.RegisterHostFunc("print", func(_ *icescript.VM, argv []icescript.Value) (icescript.Value, error) {
 		for i, v := range argv {
 			if i > 0 {
@@ -34,22 +53,20 @@ func add(a int, b int) int {
 		}
 		x1, y1 := argv[0].AsFloat(), argv[1].AsFloat()
 		x2, y2 := argv[2].AsFloat(), argv[3].AsFloat()
-		dx, dy := x2-x1, y2-y1
-		return icescript.VFloat(math.Hypot(dx, dy)), nil
+		return icescript.VFloat(math.Hypot(x2-x1, y2-y1)), nil
 	})
 
-	// globals
-	vm.SetGlobal("PI", icescript.VFloat(3.14159))
-	vm.SetGlobal("f", icescript.VFloat(42.0))
+	p := Player{Name: "Hero", Life: 100, Mana: 50, X: 0, Y: 0}
+	vm.SetGlobal("Player", icescript.VObject(p))
 
 	if err := vm.Compile(src); err != nil {
 		panic(err)
 	}
 
-	out, err := vm.Invoke("add", icescript.VFloat(0), icescript.VFloat(0))
+	out, err := vm.Invoke("demo")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("result:", out.AsFloat())
+	fmt.Println("demo() ->", out.AsInt())
 
 }
