@@ -17,6 +17,9 @@ type Player struct {
 func main() {
 	src := `
 func demo() int {
+  print("Player")
+  print("Player.Name:", Player.Name, "Life:", Player.Life, "Mana:", Player.Mana)
+
   var p = { x: 3, y: 4 }
   print("p:", p, "len:", distance(0, 0, p.x, p.y))
 
@@ -57,7 +60,7 @@ func demo() int {
 	})
 
 	p := Player{Name: "Hero", Life: 100, Mana: 50, X: 0, Y: 0}
-	vm.SetGlobal("Player", icescript.VObject(p))
+	vm.SetGlobal("Player", icescript.MustVFromGo(p))
 
 	if err := vm.Compile(src); err != nil {
 		panic(err)
