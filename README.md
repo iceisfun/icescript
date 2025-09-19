@@ -29,7 +29,7 @@ import (
 
 func main() {
     const src = `
-func main() null {
+func main() {
   print("hello from icescript")
   return null
 }
@@ -68,7 +68,7 @@ type Player struct {
 
 func main() {
     script := `
-func move(dx, dy) null {
+func move(dx, dy) {
   Player.X = Player.X + dx
   Player.Y = Player.Y + dy
   return null
@@ -91,8 +91,7 @@ func move(dx, dy) null {
         panic(err)
     }
 
-    fmt.Printf("updated player: %+v
-", out)
+    fmt.Printf("updated player: %+v\n", out)
 }
 ```
 

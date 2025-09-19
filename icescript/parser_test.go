@@ -1,10 +1,13 @@
 package icescript
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseIfAndFor(t *testing.T) {
 	src := `
-func demo() int {
+func demo() {
   var total = 0
   var nums = [1, 2, 3]
   for n in nums {
@@ -28,7 +31,7 @@ func demo() int {
 	}
 
 	if len(fn.Body.Stmts) != 4 {
-		t.Fatalf("expected 5 statements in demo body, got %d", len(fn.Body.Stmts))
+		t.Fatalf("expected 4 statements in demo body, got %d", len(fn.Body.Stmts))
 	}
 
 	if _, ok := fn.Body.Stmts[0].(*VarStmt); !ok {
@@ -90,5 +93,37 @@ func update() {
 
 	if member.Name != "x" {
 		t.Fatalf("expected field 'x', got %s", member.Name)
+	}
+}
+
+func TestFunctionReturnTypeRejected(t *testing.T) {
+	src := `
+func bad() int {
+  return 1
+}
+`
+	parser := NewParser(New(src))
+	_, errs := parser.ParseProgram()
+	if len(errs) == 0 {
+		t.Fatalf("expected error for return type annotation")
+	}
+	if !strings.Contains(errs[0].Error(), "return types are not supported") {
+		t.Fatalf("expected return type error, got %v", errs[0])
+	}
+}
+
+func TestFunctionParamTypeRejected(t *testing.T) {
+	src := `
+func bad(x int) {
+  return null
+}
+`
+	parser := NewParser(New(src))
+	_, errs := parser.ParseProgram()
+	if len(errs) == 0 {
+		t.Fatalf("expected error for parameter type annotation")
+	}
+	if !strings.Contains(errs[0].Error(), "types are not supported") {
+		t.Fatalf("expected parameter type error, got %v", errs[0])
 	}
 }

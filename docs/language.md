@@ -2,10 +2,10 @@
 
 ## Functions
 
-Scripts are organized as top-level `func` declarations. Each function defines a name, optional parameters, and an optional return value. The return type is currently informational only – at runtime values are dynamically typed.
+Scripts are organized as top-level `func` declarations. A function lists its name and zero or more comma-separated parameter names. There are no type annotations—values are dynamically typed at runtime.
 
 ```icescript
-func demo(x, y) int {
+func demo(x, y) {
   return x + y
 }
 ```
@@ -85,7 +85,7 @@ Runtime errors (unknown identifiers, bounds checks, division by zero, etc.) abor
 ## Example
 
 ```icescript
-func main() int {
+func main() {
   var total = 0
   var data = [1, 2, 3, 4]
 

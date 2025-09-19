@@ -144,18 +144,16 @@ type Program struct {
 }
 
 type FuncDecl struct {
-	Name    string
-	Params  []Param
-	RetType string // parsed but not enforced (yet)
-	Body    *BlockStmt
-	Start   Position
+	Name   string
+	Params []Param
+	Body   *BlockStmt
+	Start  Position
 }
 
 func (f *FuncDecl) Pos() Position { return f.Start }
 
 type Param struct {
 	Name string
-	Type string
 	Posn Position
 }
 
@@ -270,10 +268,7 @@ func NewParser(lx *Lexer) *Parser {
 	return p
 }
 
-func (p *Parser) next() {
-	p.prev = p.cur
-	p.cur, p.peekTok = p.peekTok, p.lx.NextToken()
-}
+func (p *Parser) next() { p.cur, p.peekTok = p.peekTok, p.lx.NextToken() }
 func (p *Parser) expectLit(l string) bool {
 	if p.cur.Literal == l {
 		return true
@@ -337,24 +332,22 @@ func (p *Parser) parseFunc() *FuncDecl {
 
 	var params []Param
 	for p.cur.Literal != ")" && p.cur.Kind != EOF {
-		// name
 		if p.cur.Kind != IDENT {
-			p.errf(p.cur.Position, "expected param name")
+			p.errf(p.cur.Position, "expected parameter name, got %q", p.cur.Literal)
 			return nil
 		}
 		pname := p.cur.Literal
 		ppos := p.cur.Position
 		p.next()
-		// type (IDENT) — optional in practice; we accept IDENT if present
-		ptype := ""
-		if p.cur.Kind == IDENT {
-			ptype = p.cur.Literal
+		params = append(params, Param{Name: pname, Posn: ppos})
+		switch p.cur.Literal {
+		case ",":
 			p.next()
-		}
-		params = append(params, Param{Name: pname, Type: ptype, Posn: ppos})
-		// comma?
-		if p.cur.Literal == "," {
-			p.next()
+		case ")":
+			// loop will exit
+		default:
+			p.errf(p.cur.Position, "unexpected token %q after parameter %s; types are not supported", p.cur.Literal, pname)
+			return nil
 		}
 	}
 	if p.cur.Literal != ")" {
@@ -363,21 +356,17 @@ func (p *Parser) parseFunc() *FuncDecl {
 	}
 	p.next()
 
-	// optional return type (IDENT)
-	retType := ""
-	if p.cur.Kind == IDENT {
-		retType = p.cur.Literal
-		p.next()
-	}
-
-	// body
-	if p.cur.Literal != "{" {
+	if !(p.cur.Literal == "{" || p.cur.Kind == LBRACE) {
+		if p.cur.Kind == IDENT {
+			p.errf(p.cur.Position, "unexpected token %q before function body; return types are not supported", p.cur.Literal)
+			return nil
+		}
 		p.errf(p.cur.Position, "expected '{' to start function body")
 		return nil
 	}
 	body := p.parseBlock()
 
-	return &FuncDecl{Name: name, Params: params, RetType: retType, Body: body, Start: start}
+	return &FuncDecl{Name: name, Params: params, Body: body, Start: start}
 }
 
 func (p *Parser) parseBlock() *BlockStmt {

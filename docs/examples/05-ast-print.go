@@ -15,7 +15,7 @@ func add(a, b) {
   return a + b
 }
 
-func twice(x foobar) {
+func twice(x) {
   return add(x, x)
 }
 `

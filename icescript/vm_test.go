@@ -18,7 +18,7 @@ func mustCompile(t *testing.T, src string, setup func(*VM)) *VM {
 
 func TestVMInvokeReturnValue(t *testing.T) {
 	src := `
-func sum(a, b int) int {
+func sum(a, b) {
   return a + b
 }
 `
@@ -34,7 +34,7 @@ func sum(a, b int) int {
 
 func TestVMHostFunctionBinding(t *testing.T) {
 	src := `
-func call() int {
+func call() {
   return add(2, 3)
 }
 `
@@ -63,7 +63,7 @@ func call() int {
 
 func TestVMIfElseMutatesGlobal(t *testing.T) {
 	src := `
-func decide(damage int) {
+func decide(damage) {
   if (damage > 0) {
     Player.Life = Player.Life - damage
   } else {

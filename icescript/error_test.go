@@ -7,12 +7,12 @@ import (
 
 func TestRuntimeErrorStackTrace(t *testing.T) {
 	src := `
-func blow() int {
+func blow() {
   var z = 0
   return 10 / z
 }
 
-func main() int {
+func main() {
   return blow()
 }
 `
