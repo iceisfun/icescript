@@ -46,8 +46,120 @@ func (l *Lexer) NextToken() Token {
 	case '"', '\'':
 		// string literal with escapes
 		return l.readString(pos, l.ch)
-
-	// ... keep your existing operator/delimiter cases here ...
+	case '=':
+		if l.peekChar() == '=' {
+			l.readChar()
+			tok := Token{Kind: EQ, Literal: "==", Position: pos}
+			l.readChar()
+			return tok
+		}
+		tok := Token{Kind: ASSIGN, Literal: "=", Position: pos}
+		l.readChar()
+		return tok
+	case '!':
+		if l.peekChar() == '=' {
+			l.readChar()
+			tok := Token{Kind: NEQ, Literal: "!=", Position: pos}
+			l.readChar()
+			return tok
+		}
+		tok := Token{Kind: BANG, Literal: "!", Position: pos}
+		l.readChar()
+		return tok
+	case '<':
+		if l.peekChar() == '=' {
+			l.readChar()
+			tok := Token{Kind: LTE, Literal: "<=", Position: pos}
+			l.readChar()
+			return tok
+		}
+		tok := Token{Kind: LT, Literal: "<", Position: pos}
+		l.readChar()
+		return tok
+	case '>':
+		if l.peekChar() == '=' {
+			l.readChar()
+			tok := Token{Kind: GTE, Literal: ">=", Position: pos}
+			l.readChar()
+			return tok
+		}
+		tok := Token{Kind: GT, Literal: ">", Position: pos}
+		l.readChar()
+		return tok
+	case '&':
+		if l.peekChar() == '&' {
+			l.readChar()
+			tok := Token{Kind: AND, Literal: "&&", Position: pos}
+			l.readChar()
+			return tok
+		}
+	case '|':
+		if l.peekChar() == '|' {
+			l.readChar()
+			tok := Token{Kind: OR, Literal: "||", Position: pos}
+			l.readChar()
+			return tok
+		}
+	case '+':
+		tok := Token{Kind: PLUS, Literal: "+", Position: pos}
+		l.readChar()
+		return tok
+	case '-':
+		tok := Token{Kind: MINUS, Literal: "-", Position: pos}
+		l.readChar()
+		return tok
+	case '*':
+		tok := Token{Kind: STAR, Literal: "*", Position: pos}
+		l.readChar()
+		return tok
+	case '/':
+		tok := Token{Kind: SLASH, Literal: "/", Position: pos}
+		l.readChar()
+		return tok
+	case '%':
+		tok := Token{Kind: PERCENT, Literal: "%", Position: pos}
+		l.readChar()
+		return tok
+	case '(':
+		tok := Token{Kind: LPAREN, Literal: "(", Position: pos}
+		l.readChar()
+		return tok
+	case ')':
+		tok := Token{Kind: RPAREN, Literal: ")", Position: pos}
+		l.readChar()
+		return tok
+	case '{':
+		tok := Token{Kind: LBRACE, Literal: "{", Position: pos}
+		l.readChar()
+		return tok
+	case '}':
+		tok := Token{Kind: RBRACE, Literal: "}", Position: pos}
+		l.readChar()
+		return tok
+	case '[':
+		tok := Token{Kind: LBRACK, Literal: "[", Position: pos}
+		l.readChar()
+		return tok
+	case ']':
+		tok := Token{Kind: RBRACK, Literal: "]", Position: pos}
+		l.readChar()
+		return tok
+	case ',':
+		tok := Token{Kind: COMMA, Literal: ",", Position: pos}
+		l.readChar()
+		return tok
+	case ';':
+		tok := Token{Kind: SEMICOLON, Literal: ";", Position: pos}
+		l.readChar()
+		return tok
+	case ':':
+		tok := Token{Kind: COLON, Literal: ":", Position: pos}
+		l.readChar()
+		return tok
+	case '.':
+		tok := Token{Kind: DOT, Literal: ".", Position: pos}
+		l.readChar()
+		return tok
 
 	case 0:
 		return Token{Kind: EOF, Literal: "", Position: pos}
@@ -152,6 +264,16 @@ func (*AssignStmt) stmtNode() {}
 func (a *AssignStmt) Pos() Position {
 	return a.P
 }
+
+type IfStmt struct {
+	Cond Expr
+	Then *BlockStmt
+	Else *BlockStmt
+	P    Position
+}
+
+func (*IfStmt) stmtNode()       {}
+func (i *IfStmt) Pos() Position { return i.P }
 
 type ForInStmt struct {
 	VarName  string

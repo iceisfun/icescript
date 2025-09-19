@@ -255,10 +255,12 @@ func (b *BinaryExpr) Pos() Position { return b.P }
 // ---------- Parser (Pratt for expressions) ----------
 
 type Parser struct {
-	lx      *Lexer
-	cur     Token
-	peekTok Token
-	errs    []error
+	lx                   *Lexer
+	cur                  Token
+	peekTok              Token
+	prev                 Token
+	errs                 []error
+	noObjectLiteralDepth int
 }
 
 func NewParser(lx *Lexer) *Parser {
@@ -268,7 +270,10 @@ func NewParser(lx *Lexer) *Parser {
 	return p
 }
 
-func (p *Parser) next() { p.cur, p.peekTok = p.peekTok, p.lx.NextToken() }
+func (p *Parser) next() {
+	p.prev = p.cur
+	p.cur, p.peekTok = p.peekTok, p.lx.NextToken()
+}
 func (p *Parser) expectLit(l string) bool {
 	if p.cur.Literal == l {
 		return true
@@ -430,6 +435,42 @@ func (p *Parser) parseStmt() Stmt {
 		return &VarStmt{Name: name, Init: init, P: pos}
 	}
 
+	// if condition { ... } (optional else)
+	if p.cur.Literal == "if" || p.cur.Kind == IF {
+		pos := p.cur.Position
+		p.next()
+		parened := false
+		if p.cur.Literal == "(" {
+			parened = true
+			p.next()
+		}
+		p.noObjectLiteralDepth++
+		cond := p.parseExpr(0)
+		p.noObjectLiteralDepth--
+		if parened {
+			if !(p.cur.Literal == ")" || p.cur.Kind == RPAREN) {
+				p.errf(p.cur.Position, "expected ')' to close if condition")
+				return nil
+			}
+			p.next()
+		}
+		if !(p.cur.Literal == "{" || p.cur.Kind == LBRACE) {
+			p.errf(p.cur.Position, "expected '{' to start if body")
+			return nil
+		}
+		thenBlk := p.parseBlock()
+		var elseBlk *BlockStmt
+		if p.cur.Literal == "else" || p.cur.Kind == ELSE {
+			p.next()
+			if !(p.cur.Literal == "{" || p.cur.Kind == LBRACE) {
+				p.errf(p.cur.Position, "expected '{' to start else body")
+				return &IfStmt{Cond: cond, Then: thenBlk, P: pos}
+			}
+			elseBlk = p.parseBlock()
+		}
+		return &IfStmt{Cond: cond, Then: thenBlk, Else: elseBlk, P: pos}
+	}
+
 	// for x in iterable { ... }
 	if p.cur.Literal == "for" || p.cur.Kind == FOR {
 		pos := p.cur.Position
@@ -498,6 +539,9 @@ func prec(op string) int {
 func (p *Parser) parseExpr(minPrec int) Expr {
 	left := p.parsePrimary()
 	for {
+		if p.noObjectLiteralDepth > 0 && (p.cur.Literal == "{" || p.cur.Kind == LBRACE) {
+			break
+		}
 		op := p.cur.Literal
 		pk := p.cur.Kind
 		// operators generally come as literal symbols; some lexers set specific kinds for EQ/NEQ etc.
@@ -802,6 +846,27 @@ func (vm *VM) execBlock(env map[string]Value, blk *BlockStmt) (Value, error) {
 				return VNull(), err
 			}
 			env[s.Name] = v
+
+		case *IfStmt:
+			cond, err := vm.evalExpr(env, s.Cond)
+			if err != nil {
+				return VNull(), err
+			}
+			var branch *BlockStmt
+			if cond.AsBool() {
+				branch = s.Then
+			} else {
+				branch = s.Else
+			}
+			if branch != nil {
+				val, err := vm.execBlock(env, branch)
+				if err != nil {
+					return VNull(), err
+				}
+				last = val
+			} else {
+				last = VNull()
+			}
 
 		case *AssignStmt:
 			v, err := vm.evalExpr(env, s.Value)
