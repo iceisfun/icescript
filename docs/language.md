@@ -23,6 +23,10 @@ var mystery // -> null
 
 Assignments mutate locals, globals, object fields, and array elements. Nested writes such as `actor.position.x = 42` are supported.
 
+## Constants
+
+The host application can expose immutable constants via `vm.SetConstants`. Constants behave like globals that cannot be reassigned or mutated, and their string form includes the original name (for example `65::AncientTunnels`). Attempting to assign to a constant produces a runtime error.
+
 ## Conditionals
 
 Use `if` to branch on a truthy value. Non-zero numbers, non-empty strings, non-empty arrays/objects, and `true` are considered truthy.

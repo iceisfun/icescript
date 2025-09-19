@@ -34,6 +34,7 @@ Use `VFromGo(any)` / `MustVFromGo(any)` to wrap Go data into script values. Supp
 
 * `RegisterHostFunc(name string, fn HostFunc)` registers a Go function that scripts can call. A `HostFunc` has the signature `func(*icescript.VM, []icescript.Value) (icescript.Value, error)`.
 * `SetGlobal(name string, value Value)` injects a global value. Reassigning the same name overwrites the previous value.
+* `SetConstants(map[string]any) error` registers immutable constants that are readable from scripts. Constant stringification includes the name (for example `65::AncientTunnels`).
 * `GetGlobal(name string) Value` fetches a global (returns `null` if missing). Combine with `ToGo` to hydrate Go structs.
 * `Compile(src string) error` parses source code and prepares it for execution.
 * `Invoke(name string, args ...Value) (Value, error)` calls a script function by name.

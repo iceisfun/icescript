@@ -22,13 +22,14 @@ const (
 )
 
 type Value struct {
-	Kind ValueKind
-	I    int64
-	F    float64
-	B    bool
-	S    string
-	Arr  []Value          // NEW
-	Obj  map[string]Value // NEW
+	Kind      ValueKind
+	I         int64
+	F         float64
+	B         bool
+	S         string
+	Arr       []Value          // NEW
+	Obj       map[string]Value // NEW
+	ConstName string
 }
 
 func VArray(xs []Value) Value          { return Value{Kind: ArrayKind, Arr: xs} }
@@ -39,18 +40,20 @@ func VFloat(v float64) Value           { return Value{Kind: FloatKind, F: v} }
 func VBool(v bool) Value               { return Value{Kind: BoolKind, B: v} }
 func VString(v string) Value           { return Value{Kind: StringKind, S: v} }
 func (v Value) String() string {
+	var base string
 	switch v.Kind {
 	case IntKind:
-		return fmt.Sprintf("%d", v.I)
+		base = fmt.Sprintf("%d", v.I)
 	case FloatKind:
-		return fmt.Sprintf("%g", v.F)
+		base = fmt.Sprintf("%g", v.F)
 	case BoolKind:
 		if v.B {
-			return "true"
+			base = "true"
+		} else {
+			base = "false"
 		}
-		return "false"
 	case StringKind:
-		return v.S
+		base = v.S
 	case ArrayKind:
 		var b strings.Builder
 		b.WriteByte('[')
@@ -61,7 +64,7 @@ func (v Value) String() string {
 			b.WriteString(e.String())
 		}
 		b.WriteByte(']')
-		return b.String()
+		base = b.String()
 	case ObjectKind:
 		var b strings.Builder
 		b.WriteByte('{')
@@ -76,10 +79,14 @@ func (v Value) String() string {
 			i++
 		}
 		b.WriteByte('}')
-		return b.String()
+		base = b.String()
 	default:
-		return "null"
+		base = "null"
 	}
+	if v.ConstName != "" {
+		return base + "::" + v.ConstName
+	}
+	return base
 }
 
 func (v Value) AsFloat() float64 {
@@ -760,6 +767,7 @@ func (p *Parser) parsePrimary() Expr {
 type VM struct {
 	prog      *Program
 	globals   map[string]Value
+	constants map[string]Value
 	hostFuncs map[string]HostFunc
 	callstack []callFrame
 }
@@ -772,12 +780,32 @@ type callFrame struct {
 func NewVM() *VM {
 	return &VM{
 		globals:   make(map[string]Value),
+		constants: make(map[string]Value),
 		hostFuncs: make(map[string]HostFunc),
 	}
 }
 
 func (vm *VM) RegisterHostFunc(name string, fn HostFunc) { vm.hostFuncs[name] = fn }
 func (vm *VM) SetGlobal(name string, v Value)            { vm.globals[name] = v }
+func (vm *VM) SetConstants(consts map[string]any) error {
+	vm.constants = make(map[string]Value, len(consts))
+	for name, raw := range consts {
+		var val Value
+		switch c := raw.(type) {
+		case Value:
+			val = c
+		default:
+			converted, err := VFromGo(c)
+			if err != nil {
+				return fmt.Errorf("constant %s: %w", name, err)
+			}
+			val = converted
+		}
+		val.ConstName = name
+		vm.constants[name] = val
+	}
+	return nil
+}
 func (vm *VM) GetGlobal(name string) Value {
 	if v, ok := vm.globals[name]; ok {
 		return v
@@ -914,6 +942,9 @@ func kindName(k ValueKind) string {
 func (vm *VM) assignValue(env map[string]Value, target Expr, value Value) error {
 	switch t := target.(type) {
 	case *Ident:
+		if _, ok := vm.constants[t.Name]; ok {
+			return vm.rtErr(t.P, "cannot assign to constant %q", t.Name)
+		}
 		if _, ok := env[t.Name]; ok {
 			env[t.Name] = value
 			return nil
@@ -927,6 +958,9 @@ func (vm *VM) assignValue(env map[string]Value, target Expr, value Value) error 
 		obj, err := vm.evalExpr(env, t.Object)
 		if err != nil {
 			return err
+		}
+		if obj.ConstName != "" {
+			return vm.rtErr(t.P, "cannot modify constant %q", obj.ConstName)
 		}
 		if obj.Kind != ObjectKind {
 			return vm.rtErr(t.P, "cannot set field %q on %s", t.Name, kindName(obj.Kind))
@@ -952,6 +986,9 @@ func (vm *VM) assignValue(env map[string]Value, target Expr, value Value) error 
 		seq, err := vm.evalExpr(env, t.Seq)
 		if err != nil {
 			return err
+		}
+		if seq.ConstName != "" {
+			return vm.rtErr(t.P, "cannot modify constant %q", seq.ConstName)
 		}
 		idxVal, err := vm.evalExpr(env, t.Index)
 		if err != nil {
@@ -990,6 +1027,9 @@ func (vm *VM) evalExpr(env map[string]Value, e Expr) (Value, error) {
 	case *Ident:
 		// locals > globals
 		if v, ok := env[ex.Name]; ok {
+			return v, nil
+		}
+		if v, ok := vm.constants[ex.Name]; ok {
 			return v, nil
 		}
 		if v, ok := vm.globals[ex.Name]; ok {

@@ -20,6 +20,7 @@ func main() {
 func demo() {
   print("Player")
   print("Player.Name:", Player.Name, "Life:", Player.Life, "Mana:", Player.Mana)
+  print("Constant:", AncientTunnels)
   Player.X = Player.X + 1
   Player.Y = Player.Y + 1
   print("Player position:", Player.X, Player.Y)
@@ -42,6 +43,11 @@ func demo() {
 }
 `
 	vm := icescript.NewVM()
+	if err := vm.SetConstants(map[string]any{
+		"AncientTunnels": 65,
+	}); err != nil {
+		panic(err)
+	}
 
 	vm.RegisterHostFunc("print", func(_ *icescript.VM, argv []icescript.Value) (icescript.Value, error) {
 		for i, v := range argv {

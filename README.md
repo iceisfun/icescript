@@ -9,6 +9,7 @@ Icescript is a small embedded scripting language implemented in Go. It ships wit
 - Seamless Go interop with `VFromGo` / `Value.ToGo` for structs, maps, slices, strings, and scalars.
 - Host function bridge (`RegisterHostFunc`) so scripts can call back into Go.
 - Descriptive runtime errors with function stack traces and source positions.
+- Immutable host-defined constants with annotated string output (e.g. `65::AncientTunnels`).
 
 ## Install
 
@@ -36,6 +37,11 @@ func main() {
 `
 
     vm := icescript.NewVM()
+    if err := vm.SetConstants(map[string]any{
+        "AncientTunnels": 65,
+    }); err != nil {
+        panic(err)
+    }
     vm.RegisterHostFunc("print", func(_ *icescript.VM, args []icescript.Value) (icescript.Value, error) {
         for i, v := range args {
             if i > 0 {
@@ -56,6 +62,7 @@ func main() {
     }
 }
 ```
+Constants stringify as `<value>::<NAME>` so printing `AncientTunnels` yields `65::AncientTunnels`.
 
 ### Binding Go Values
 
@@ -76,6 +83,11 @@ func move(dx, dy) {
 `
 
     vm := icescript.NewVM()
+    if err := vm.SetConstants(map[string]any{
+        "AncientTunnels": 65,
+    }); err != nil {
+        panic(err)
+    }
     vm.SetGlobal("Player", icescript.MustVFromGo(Player{Name: "Hero", Life: 100}))
 
     if err := vm.Compile(script); err != nil {
