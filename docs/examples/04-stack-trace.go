@@ -19,6 +19,18 @@ func boom() {
   }
   return total
 }
+
+func fn1() {
+  return fn2()
+}
+
+func fn2() {
+  return fn3()
+}
+
+func fn3() {
+  return boom()
+}
 `
 
 	vm := icescript.NewVM()
@@ -26,7 +38,7 @@ func boom() {
 		panic(err)
 	}
 
-	if rval, err := vm.Invoke("boom"); err != nil {
+	if rval, err := vm.Invoke("fn1"); err != nil {
 		fmt.Println("runtime error:")
 		fmt.Println(err)
 	} else {
