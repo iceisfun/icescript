@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"math"
 
-	"lex/icescript"
+	"github.com/iceisfun/icescript/icescript"
 )
 
 func main() {

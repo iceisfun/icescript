@@ -6,7 +6,7 @@ package main
 import (
 	"fmt"
 
-	"lex/icescript"
+	"github.com/iceisfun/icescript/icescript"
 )
 
 func main() {

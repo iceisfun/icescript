@@ -1,11 +1,11 @@
 # Go Integration API
 
-The `lex/icescript` package exposes a small API surface for embedding the interpreter inside Go programs.
+The `github.com/iceisfun/icescript/icescript` package exposes a small API surface for embedding the interpreter inside Go programs.
 
 ## Values
 
 ```go
-import "lex/icescript"
+import "github.com/iceisfun/icescript/icescript"
 ```
 
 `icescript.Value` is a tagged union representing all runtime values. Inspect the kind with the `Kind` field (one of `NullKind`, `IntKind`, `FloatKind`, `BoolKind`, `StringKind`, `ArrayKind`, `ObjectKind`). Convenience constructors build specific values:
