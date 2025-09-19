@@ -11,7 +11,7 @@ import (
 
 func main() {
 	script := `
-func boom() int {
+func boom() {
   var nums = [1, 0, 2]
   var total = 0
   for n in nums {
@@ -26,8 +26,10 @@ func boom() int {
 		panic(err)
 	}
 
-	if _, err := vm.Invoke("boom"); err != nil {
+	if rval, err := vm.Invoke("boom"); err != nil {
 		fmt.Println("runtime error:")
 		fmt.Println(err)
+	} else {
+		fmt.Println("Return value:", rval.String())
 	}
 }

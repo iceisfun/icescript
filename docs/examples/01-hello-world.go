@@ -11,7 +11,7 @@ import (
 
 func main() {
 	const src = `
-func main() null {
+func main() {
   print("hello from icescript")
   return null
 }
@@ -33,7 +33,9 @@ func main() null {
 		panic(err)
 	}
 
-	if _, err := vm.Invoke("main"); err != nil {
+	if rval, err := vm.Invoke("main"); err != nil {
 		panic(err)
+	} else {
+		fmt.Println("Return value:", rval.String())
 	}
 }

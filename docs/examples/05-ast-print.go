@@ -11,11 +11,11 @@ import (
 
 func main() {
 	const src = `
-func add(a, b int) int {
+func add(a, b int) {
   return a + b
 }
 
-func twice(x int) int {
+func twice(x int) {
   return add(x, x)
 }
 `

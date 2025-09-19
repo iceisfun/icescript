@@ -18,7 +18,7 @@ type Player struct {
 
 func main() {
 	script := `
-func move(dx, dy) null {
+func move(dx, dy) {
   Player.X = Player.X + dx
   Player.Y = Player.Y + dy
   return null
@@ -32,8 +32,10 @@ func move(dx, dy) null {
 		panic(err)
 	}
 
-	if _, err := vm.Invoke("move", icescript.VFloat(3), icescript.VFloat(-2)); err != nil {
+	if rval, err := vm.Invoke("move", icescript.VFloat(3), icescript.VFloat(-2)); err != nil {
 		panic(err)
+	} else {
+		fmt.Println("Return value:", rval.String())
 	}
 
 	var out Player
