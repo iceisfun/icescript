@@ -745,6 +745,12 @@ func NewVM() *VM {
 
 func (vm *VM) RegisterHostFunc(name string, fn HostFunc) { vm.hostFuncs[name] = fn }
 func (vm *VM) SetGlobal(name string, v Value)            { vm.globals[name] = v }
+func (vm *VM) GetGlobal(name string) Value {
+	if v, ok := vm.globals[name]; ok {
+		return v
+	}
+	return VNull()
+}
 
 func (vm *VM) LoadProgram(p *Program) { vm.prog = p }
 

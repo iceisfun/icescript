@@ -76,4 +76,9 @@ func demo() int {
 		}
 		fmt.Println("demo() ->", out.AsInt())
 	}
+
+	if err := vm.GetGlobal("Player").ToGo(&p); err != nil {
+		panic(err)
+	}
+	fmt.Println("Go Player:", p)
 }
