@@ -27,8 +27,8 @@ type Value struct {
 	F         float64
 	B         bool
 	S         string
-	Arr       []Value          // NEW
-	Obj       map[string]Value // NEW
+	Arr       []Value
+	Obj       map[string]Value
 	ConstName string
 }
 
@@ -263,7 +263,6 @@ type Parser struct {
 	lx                   *Lexer
 	cur                  Token
 	peekTok              Token
-	prev                 Token
 	errs                 []error
 	noObjectLiteralDepth int
 }
@@ -380,22 +379,25 @@ func (p *Parser) parseBlock() *BlockStmt {
 	lpos := p.cur.Position
 	p.next()
 	var stmts []Stmt
-	for p.cur.Literal != "}" && p.cur.Kind != EOF {
-		st := p.parseStmt()
-		if st != nil {
-			stmts = append(stmts, st)
-		} else {
-			// resync on '}' or 'return'
-			if p.cur.Literal != "}" {
+	for {
+		switch {
+		case p.cur.Literal == "}":
+			rpos := p.cur.Position
+			p.next()
+			return &BlockStmt{Stmts: stmts, LPos: lpos, RPos: rpos}
+		case p.cur.Kind == EOF:
+			p.errf(p.cur.Position, "expected '}' to close block")
+			return &BlockStmt{Stmts: stmts, LPos: lpos, RPos: p.cur.Position}
+		default:
+			st := p.parseStmt()
+			if st != nil {
+				stmts = append(stmts, st)
+			} else if p.cur.Kind != EOF {
 				p.next()
 			}
 		}
 	}
-	rpos := p.cur.Position
-	if p.cur.Literal == "}" {
-		p.next()
-	}
-	return &BlockStmt{Stmts: stmts, LPos: lpos, RPos: rpos}
+
 }
 
 func (p *Parser) parseStmt() Stmt {

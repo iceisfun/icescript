@@ -45,3 +45,30 @@ func TestCompileError(t *testing.T) {
 		t.Fatalf("unexpected compile error: %v", err)
 	}
 }
+
+func TestCompileUnbalancedBlockError(t *testing.T) {
+	vm := NewVM()
+	err := vm.Compile(`func bad() {
+	  return 1
+`)
+	if err == nil {
+		t.Fatalf("expected compile error")
+	}
+	if !strings.Contains(err.Error(), "expected '}' to close block") {
+		t.Fatalf("unexpected compile error: %v", err)
+	}
+}
+
+func TestCompileUnbalancedParenthesisError(t *testing.T) {
+	vm := NewVM()
+	err := vm.Compile(`func bad() {
+	  return (1 + 2
+}
+`)
+	if err == nil {
+		t.Fatalf("expected compile error")
+	}
+	if !strings.Contains(err.Error(), "expected ')'") {
+		t.Fatalf("unexpected compile error: %v", err)
+	}
+}
