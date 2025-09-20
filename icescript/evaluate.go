@@ -89,6 +89,45 @@ func (v Value) String() string {
 	return base
 }
 
+type environment struct {
+	vars   map[string]Value
+	parent *environment
+}
+
+func newEnvironment(parent *environment) *environment {
+	return &environment{vars: make(map[string]Value), parent: parent}
+}
+
+func (e *environment) declare(name string, v Value) {
+	if e.vars == nil {
+		e.vars = make(map[string]Value)
+	}
+	e.vars[name] = v
+}
+
+func (e *environment) lookup(name string) (Value, bool) {
+	for cur := e; cur != nil; cur = cur.parent {
+		if cur.vars != nil {
+			if v, ok := cur.vars[name]; ok {
+				return v, true
+			}
+		}
+	}
+	return Value{}, false
+}
+
+func (e *environment) assign(name string, v Value) bool {
+	for cur := e; cur != nil; cur = cur.parent {
+		if cur.vars != nil {
+			if _, ok := cur.vars[name]; ok {
+				cur.vars[name] = v
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (v Value) AsFloat() float64 {
 	switch v.Kind {
 	case FloatKind:
@@ -931,9 +970,9 @@ func (vm *VM) Invoke(name string, args ...Value) (Value, error) {
 			if len(args) != len(f.Params) {
 				return VNull(), vm.rtErr(f.Start, "function %s expects %d args, got %d", f.Name, len(f.Params), len(args))
 			}
-			env := make(map[string]Value)
+			env := newEnvironment(nil)
 			for i, prm := range f.Params {
-				env[prm.Name] = args[i]
+				env.declare(prm.Name, args[i])
 			}
 			vm.callstack = append(vm.callstack, callFrame{funcName: f.Name, pos: f.Start})
 			val, err := vm.execBlock(env, f.Body)
@@ -955,7 +994,8 @@ func (vm *VM) Invoke(name string, args ...Value) (Value, error) {
 	return VNull(), vm.rtErr(Position{}, "unknown function %q", name)
 }
 
-func (vm *VM) execBlock(env map[string]Value, blk *BlockStmt) (Value, error) {
+func (vm *VM) execBlock(env *environment, blk *BlockStmt) (Value, error) {
+	blockEnv := newEnvironment(env)
 	var last Value = VNull()
 	for _, st := range blk.Stmts {
 		switch s := st.(type) {
@@ -963,7 +1003,7 @@ func (vm *VM) execBlock(env map[string]Value, blk *BlockStmt) (Value, error) {
 			var val Value
 			if s.Expr != nil {
 				var err error
-				val, err = vm.evalExpr(env, s.Expr)
+				val, err = vm.evalExpr(blockEnv, s.Expr)
 				if err != nil {
 					return VNull(), err
 				}
@@ -977,21 +1017,21 @@ func (vm *VM) execBlock(env map[string]Value, blk *BlockStmt) (Value, error) {
 			return VNull(), loopErr{kind: signalContinue, pos: s.P}
 
 		case *ExprStmt:
-			v, err := vm.evalExpr(env, s.X)
+			v, err := vm.evalExpr(blockEnv, s.X)
 			if err != nil {
 				return VNull(), err
 			}
 			last = v
 
 		case *VarStmt:
-			v, err := vm.evalExpr(env, s.Init)
+			v, err := vm.evalExpr(blockEnv, s.Init)
 			if err != nil {
 				return VNull(), err
 			}
-			env[s.Name] = v
+			blockEnv.declare(s.Name, v)
 
 		case *IfStmt:
-			cond, err := vm.evalExpr(env, s.Cond)
+			cond, err := vm.evalExpr(blockEnv, s.Cond)
 			if err != nil {
 				return VNull(), err
 			}
@@ -1002,7 +1042,7 @@ func (vm *VM) execBlock(env map[string]Value, blk *BlockStmt) (Value, error) {
 				branch = s.Else
 			}
 			if branch != nil {
-				val, err := vm.execBlock(env, branch)
+				val, err := vm.execBlock(blockEnv, branch)
 				if err != nil {
 					var re returnErr
 					if errors.As(err, &re) {
@@ -1016,16 +1056,16 @@ func (vm *VM) execBlock(env map[string]Value, blk *BlockStmt) (Value, error) {
 			}
 
 		case *AssignStmt:
-			v, err := vm.evalExpr(env, s.Value)
+			v, err := vm.evalExpr(blockEnv, s.Value)
 			if err != nil {
 				return VNull(), err
 			}
-			if err := vm.assignValue(env, s.Target, v); err != nil {
+			if err := vm.assignValue(blockEnv, s.Target, v); err != nil {
 				return VNull(), err
 			}
 
 		case *ForInStmt:
-			iter, err := vm.evalExpr(env, s.Iterable)
+			iter, err := vm.evalExpr(blockEnv, s.Iterable)
 			if err != nil {
 				return VNull(), err
 			}
@@ -1033,8 +1073,10 @@ func (vm *VM) execBlock(env map[string]Value, blk *BlockStmt) (Value, error) {
 			case ArrayKind:
 			loop:
 				for _, item := range iter.Arr {
-					env[s.VarName] = item
-					val, err := vm.execBlock(env, s.Body)
+					if !blockEnv.assign(s.VarName, item) {
+						blockEnv.declare(s.VarName, item)
+					}
+					val, err := vm.execBlock(blockEnv, s.Body)
 					if err != nil {
 						var re returnErr
 						if errors.As(err, &re) {
@@ -1085,14 +1127,13 @@ func kindName(k ValueKind) string {
 	}
 }
 
-func (vm *VM) assignValue(env map[string]Value, target Expr, value Value) error {
+func (vm *VM) assignValue(env *environment, target Expr, value Value) error {
 	switch t := target.(type) {
 	case *Ident:
 		if _, ok := vm.constants[t.Name]; ok {
 			return vm.rtErr(t.P, "cannot assign to constant %q", t.Name)
 		}
-		if _, ok := env[t.Name]; ok {
-			env[t.Name] = value
+		if env != nil && env.assign(t.Name, value) {
 			return nil
 		}
 		if _, ok := vm.globals[t.Name]; ok {
@@ -1117,9 +1158,10 @@ func (vm *VM) assignValue(env map[string]Value, target Expr, value Value) error 
 		obj.Obj[t.Name] = value
 		switch parent := t.Object.(type) {
 		case *Ident:
-			if _, ok := env[parent.Name]; ok {
-				env[parent.Name] = obj
-			} else if _, ok := vm.globals[parent.Name]; ok {
+			if env != nil && env.assign(parent.Name, obj) {
+				return nil
+			}
+			if _, ok := vm.globals[parent.Name]; ok {
 				vm.globals[parent.Name] = obj
 			}
 		case *MemberExpr:
@@ -1152,9 +1194,10 @@ func (vm *VM) assignValue(env map[string]Value, target Expr, value Value) error 
 		}
 		switch parent := t.Seq.(type) {
 		case *Ident:
-			if _, ok := env[parent.Name]; ok {
-				env[parent.Name] = seq
-			} else if _, ok := vm.globals[parent.Name]; ok {
+			if env != nil && env.assign(parent.Name, seq) {
+				return nil
+			}
+			if _, ok := vm.globals[parent.Name]; ok {
 				vm.globals[parent.Name] = seq
 			}
 		case *MemberExpr:
@@ -1168,12 +1211,14 @@ func (vm *VM) assignValue(env map[string]Value, target Expr, value Value) error 
 	}
 }
 
-func (vm *VM) evalExpr(env map[string]Value, e Expr) (Value, error) {
+func (vm *VM) evalExpr(env *environment, e Expr) (Value, error) {
 	switch ex := e.(type) {
 	case *Ident:
 		// locals > globals
-		if v, ok := env[ex.Name]; ok {
-			return v, nil
+		if env != nil {
+			if v, ok := env.lookup(ex.Name); ok {
+				return v, nil
+			}
 		}
 		if v, ok := vm.constants[ex.Name]; ok {
 			return v, nil
@@ -1241,9 +1286,9 @@ func (vm *VM) evalExpr(env map[string]Value, e Expr) (Value, error) {
 					argv[i] = v
 				}
 				vm.callstack = append(vm.callstack, callFrame{funcName: f.Name, pos: f.Start})
-				childEnv := make(map[string]Value, len(f.Params))
+				childEnv := newEnvironment(nil)
 				for i, prm := range f.Params {
-					childEnv[prm.Name] = argv[i]
+					childEnv.declare(prm.Name, argv[i])
 				}
 				val, err := vm.execBlock(childEnv, f.Body)
 				vm.callstack = vm.callstack[:len(vm.callstack)-1]
