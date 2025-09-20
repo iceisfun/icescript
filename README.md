@@ -1,6 +1,6 @@
-# Icescript
+# icescript
 
-Icescript is a small embedded scripting language implemented in Go. It ships with a handwritten lexer, Pratt parser, and a compact interpreter so you can add lightweight scripting to Go applications without external dependencies. Arrays, objects, conditionals, host function bindings, and helpful runtime stack traces are all supported out of the box.
+icescript is a small embedded scripting language implemented in Go. It ships with a handwritten lexer, Pratt parser, and a compact interpreter so you can add lightweight scripting to Go applications without external dependencies. Arrays, objects, conditionals, host function bindings, and helpful runtime stack traces are all supported out of the box.
 
 ## Features
 
@@ -64,6 +64,7 @@ func main() {
     }
 }
 ```
+
 Constants stringify as `<value>::<NAME>` so printing `AncientTunnels` yields `65::AncientTunnels`.
 
 ### Binding Go Values
