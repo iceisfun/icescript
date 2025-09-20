@@ -186,6 +186,56 @@ type ReturnStmt struct {
 func (*ReturnStmt) stmtNode()       {}
 func (r *ReturnStmt) Pos() Position { return r.P }
 
+type BreakStmt struct {
+	P Position
+}
+
+func (*BreakStmt) stmtNode()       {}
+func (b *BreakStmt) Pos() Position { return b.P }
+
+type ContinueStmt struct {
+	P Position
+}
+
+func (*ContinueStmt) stmtNode()       {}
+func (c *ContinueStmt) Pos() Position { return c.P }
+
+type loopSignal int
+
+const (
+	signalBreak loopSignal = iota
+	signalContinue
+)
+
+type loopErr struct {
+	kind loopSignal
+	pos  Position
+}
+
+func (e loopErr) Error() string {
+	switch e.kind {
+	case signalBreak:
+		return "break"
+	case signalContinue:
+		return "continue"
+	default:
+		return "loop control"
+	}
+}
+
+func convertLoopErr(vm *VM, err error) error {
+	var le loopErr
+	if errors.As(err, &le) {
+		switch le.kind {
+		case signalBreak:
+			return vm.rtErr(le.pos, "break outside of loop")
+		case signalContinue:
+			return vm.rtErr(le.pos, "continue outside of loop")
+		}
+	}
+	return err
+}
+
 type ExprStmt struct {
 	X Expr
 	P Position
@@ -237,6 +287,15 @@ type NullLit struct {
 
 func (*NullLit) exprNode()       {}
 func (n *NullLit) Pos() Position { return n.P }
+
+type UnaryExpr struct {
+	Op string
+	X  Expr
+	P  Position
+}
+
+func (*UnaryExpr) exprNode()       {}
+func (u *UnaryExpr) Pos() Position { return u.P }
 
 type CallExpr struct {
 	Callee string
@@ -297,7 +356,11 @@ func (p *Parser) ParseProgram() (*Program, []error) {
 	pr := &Program{Funcs: make(map[string]*FuncDecl)}
 	for {
 		// EOF?
-		if p.cur.Kind == EOF || (p.cur.Kind == ILLEGAL && p.cur.Literal == "") {
+		if p.cur.Kind == EOF {
+			break
+		}
+		if p.cur.Kind == ILLEGAL {
+			p.errf(p.cur.Position, "unexpected token %q", p.cur.Literal)
 			break
 		}
 		// skip stray tokens until "func"
@@ -412,6 +475,24 @@ func (p *Parser) parseStmt() Stmt {
 		return &ReturnStmt{Expr: ex, P: pos}
 	}
 
+	if p.cur.Kind == BREAK {
+		pos := p.cur.Position
+		p.next()
+		if p.cur.Literal == ";" {
+			p.next()
+		}
+		return &BreakStmt{P: pos}
+	}
+
+	if p.cur.Kind == CONTINUE {
+		pos := p.cur.Position
+		p.next()
+		if p.cur.Literal == ";" {
+			p.next()
+		}
+		return &ContinueStmt{P: pos}
+	}
+
 	// var name (= expr)?
 	if p.cur.Literal == "var" || p.cur.Kind == VAR {
 		pos := p.cur.Position
@@ -479,7 +560,7 @@ func (p *Parser) parseStmt() Stmt {
 		}
 		varName := p.cur.Literal
 		p.next()
-		if !(p.cur.Literal == "in") { // keep it simple; treat 'in' as a literal
+		if p.cur.Kind != IN {
 			p.errf(p.cur.Position, "expected 'in' after loop variable")
 			return nil
 		}
@@ -535,7 +616,7 @@ func prec(op string) int {
 }
 
 func (p *Parser) parseExpr(minPrec int) Expr {
-	left := p.parsePrimary()
+	left := p.parseUnary()
 	for {
 		if p.noObjectLiteralDepth > 0 && (p.cur.Literal == "{" || p.cur.Kind == LBRACE) {
 			break
@@ -562,6 +643,22 @@ func (p *Parser) parseExpr(minPrec int) Expr {
 		left = &BinaryExpr{Op: op, Left: left, Right: right, P: opTok.Position}
 	}
 	return left
+}
+
+func (p *Parser) parseUnary() Expr {
+	t := p.cur
+	switch t.Kind {
+	case PLUS, MINUS, BANG:
+		op := t.Literal
+		if op == "" {
+			op = kindToOp(t.Kind)
+		}
+		p.next()
+		x := p.parseUnary()
+		return &UnaryExpr{Op: op, X: x, P: t.Position}
+	default:
+		return p.parsePrimary()
+	}
 }
 
 func isAssignableExpr(e Expr) bool {
@@ -617,6 +714,8 @@ func kindToOp(k TokenKind) string {
 		return ">="
 	case AND:
 		return "&&"
+	case BANG:
+		return "!"
 	case OR:
 		return "||"
 	default:
@@ -780,11 +879,13 @@ type callFrame struct {
 }
 
 func NewVM() *VM {
-	return &VM{
+	vm := &VM{
 		globals:   make(map[string]Value),
-		constants: make(map[string]Value),
 		hostFuncs: make(map[string]HostFunc),
 	}
+	vm.constants = make(map[string]Value)
+	installBuiltins(vm)
+	return vm
 }
 
 func (vm *VM) RegisterHostFunc(name string, fn HostFunc) { vm.hostFuncs[name] = fn }
@@ -831,7 +932,10 @@ func (vm *VM) Invoke(name string, args ...Value) (Value, error) {
 			vm.callstack = append(vm.callstack, callFrame{funcName: f.Name, pos: f.Start})
 			val, err := vm.execBlock(env, f.Body)
 			vm.callstack = vm.callstack[:len(vm.callstack)-1]
-			return val, err
+			if err != nil {
+				return VNull(), convertLoopErr(vm, err)
+			}
+			return val, nil
 		}
 	}
 	// host function?
@@ -851,6 +955,10 @@ func (vm *VM) execBlock(env map[string]Value, blk *BlockStmt) (Value, error) {
 				return VNull(), err
 			}
 			return val, nil
+		case *BreakStmt:
+			return VNull(), loopErr{kind: signalBreak, pos: s.P}
+		case *ContinueStmt:
+			return VNull(), loopErr{kind: signalContinue, pos: s.P}
 
 		case *ExprStmt:
 			v, err := vm.evalExpr(env, s.X)
@@ -903,11 +1011,23 @@ func (vm *VM) execBlock(env map[string]Value, blk *BlockStmt) (Value, error) {
 			}
 			switch iter.Kind {
 			case ArrayKind:
+			loop:
 				for _, item := range iter.Arr {
 					env[s.VarName] = item
-					if _, err := vm.execBlock(env, s.Body); err != nil {
+					val, err := vm.execBlock(env, s.Body)
+					if err != nil {
+						var le loopErr
+						if errors.As(err, &le) {
+							switch le.kind {
+							case signalContinue:
+								continue
+							case signalBreak:
+								break loop
+							}
+						}
 						return VNull(), err
 					}
+					last = val
 				}
 			default:
 				return VNull(), vm.rtErr(s.P, "cannot iterate over %s", kindName(iter.Kind))
@@ -1062,6 +1182,25 @@ func (vm *VM) evalExpr(env map[string]Value, e Expr) (Value, error) {
 	case *NullLit:
 		return VNull(), nil
 
+	case *UnaryExpr:
+		val, err := vm.evalExpr(env, ex.X)
+		if err != nil {
+			return VNull(), err
+		}
+		switch ex.Op {
+		case "-":
+			if val.Kind == FloatKind {
+				return VFloat(-val.AsFloat()), nil
+			}
+			return VInt(-val.AsInt()), nil
+		case "+":
+			return val, nil
+		case "!":
+			return VBool(!val.AsBool()), nil
+		default:
+			return VNull(), vm.rtErr(ex.P, "unsupported unary operator %q", ex.Op)
+		}
+
 	case *CallExpr:
 		// scripted function?
 		if vm.prog != nil {
@@ -1084,7 +1223,10 @@ func (vm *VM) evalExpr(env map[string]Value, e Expr) (Value, error) {
 				}
 				val, err := vm.execBlock(childEnv, f.Body)
 				vm.callstack = vm.callstack[:len(vm.callstack)-1]
-				return val, err
+				if err != nil {
+					return VNull(), convertLoopErr(vm, err)
+				}
+				return val, nil
 			}
 		}
 		// host function?

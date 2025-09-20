@@ -50,7 +50,7 @@ for n in nums {
 }
 ```
 
-Loop variables are reassigned on each iteration.
+Loop variables are reassigned on each iteration. Use `break` to exit the loop early and `continue` to skip to the next iteration.
 
 ## Literals
 
@@ -68,6 +68,7 @@ Loop variables are reassigned on each iteration.
 | Arithmetic    | `+`, `-`, `*`, `/`, `%` | `/` always returns a float and errors on divide-by-zero. `%` works on integers only. |
 | Comparison    | `==`, `!=`, `<`, `<=`, `>`, `>=` | `==` / `!=` compare stringified values. Relational operators compare numerically. |
 | Logical       | `&&`, `||` | Operands are coerced with `AsBool()`. |
+| Unary         | `-x`, `+x`, `!x` | Numeric sign flip/identity and logical NOT. |
 | Member Access | `object.field` | Errors if the left side is not an object or the field is missing. |
 | Indexing      | `array[index]` | Bounds-checked; indices are truncated to integers. |
 
@@ -75,7 +76,16 @@ The `+` operator concatenates strings when either operand is a string.
 
 ## Built-in Functions
 
-The runtime provides a single built-in: `print`, which is typically supplied by the embedding Go program. Additional host functions can be registered from Go. See [`interop.md`](interop.md) for details.
+The VM exposes common helpers by default:
+
+* `sqrt(x)`, `sin(x)`, `cos(x)`, `atan(x)`, `abs(x)`
+* `distance(x1, y1, x2, y2)`
+* `len(value)` for strings, arrays, and objects
+* `contains(needle, haystack)`
+* `lower(string)`, `upper(string)`, `trim(string)`
+* `sleep(ms)` (milliseconds)
+
+You can still register additional host functions from Go. See [`interop.md`](interop.md) for details.
 
 ## Error Handling
 

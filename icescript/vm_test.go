@@ -1,6 +1,7 @@
 package icescript
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -101,5 +102,93 @@ func decide(damage) {
 	}
 	if updated.Life != 8 {
 		t.Fatalf("expected life 8 after heal, got %d", updated.Life)
+	}
+}
+
+func TestVMBreakStopsLoop(t *testing.T) {
+	src := `
+func demo() {
+  var nums = [1, 2, 3, 4]
+  var total = 0
+  for n in nums {
+    if (n == 3) {
+      break
+    }
+    total = total + n
+  }
+  return total
+}
+`
+	vm := mustCompile(t, src, nil)
+	out, err := vm.Invoke("demo")
+	if err != nil {
+		t.Fatalf("invoke failed: %v", err)
+	}
+	if out.AsInt() != 3 {
+		t.Fatalf("expected total 3, got %d", out.AsInt())
+	}
+}
+
+func TestVMContinueSkipsIteration(t *testing.T) {
+	src := `
+func demo() {
+  var nums = [1, 2, 3, 4]
+  var total = 0
+  for n in nums {
+    if (n % 2 == 0) {
+      continue
+    }
+    total = total + n
+  }
+  return total
+}
+`
+	vm := mustCompile(t, src, nil)
+	out, err := vm.Invoke("demo")
+	if err != nil {
+		t.Fatalf("invoke failed: %v", err)
+	}
+	if out.AsInt() != 4 {
+		t.Fatalf("expected total 4, got %d", out.AsInt())
+	}
+}
+
+func TestBreakOutsideLoopRuntimeError(t *testing.T) {
+	src := `
+func demo() {
+  break
+  return null
+}
+`
+	vm := mustCompile(t, src, nil)
+	if _, err := vm.Invoke("demo"); err == nil {
+		t.Fatalf("expected error for break outside loop")
+	} else if !strings.Contains(err.Error(), "break outside of loop") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestUnaryOperators(t *testing.T) {
+	src := `
+func demo() {
+  var x = 3
+  var flag = false
+  return { neg: -x, pos: +x, not: !flag }
+}
+`
+	vm := mustCompile(t, src, nil)
+	out, err := vm.Invoke("demo")
+	if err != nil {
+		t.Fatalf("invoke failed: %v", err)
+	}
+	obj := out.Obj
+	if obj["neg"].AsInt() != -3 {
+		t.Fatalf("expected neg=-3, got %d", obj["neg"].AsInt())
+	}
+	if obj["pos"].AsInt() != 3 {
+		t.Fatalf("expected pos=3, got %d", obj["pos"].AsInt())
+	}
+	if !obj["not"].AsBool() {
+		t.Fatalf("expected not=true")
 	}
 }

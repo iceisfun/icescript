@@ -37,7 +37,7 @@ Use `VFromGo(any)` / `MustVFromGo(any)` to wrap Go data into script values. Supp
 * `SetConstants(map[string]any) error` registers immutable constants that are readable from scripts. Constant stringification includes the name (for example `65::AncientTunnels`).
 * `GetGlobal(name string) Value` fetches a global (returns `null` if missing). Combine with `ToGo` to hydrate Go structs.
 * `Compile(src string) error` parses source code and prepares it for execution.
-* `Invoke(name string, args ...Value) (Value, error)` calls a script function by name.
+* The VM pre-registers helpers such as `sqrt`, `distance`, `sin`, `cos`, `atan`, `abs`, `len`, `contains`, `lower`, `upper`, `trim`, and `sleep`.
 
 `LoadProgram(*Program)` is also available if you parse source yourself via `NewParser` / `ParseProgram` (see [`examples/05-ast-print.go`](examples/05-ast-print.go)).
 

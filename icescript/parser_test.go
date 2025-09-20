@@ -127,3 +127,44 @@ func bad(x int) {
 		t.Fatalf("expected parameter type error, got %v", errs[0])
 	}
 }
+
+func TestInKeywordReserved(t *testing.T) {
+	src := `
+func bad() {
+  var in = 1
+  return in
+}
+`
+	parser := NewParser(New(src))
+	_, errs := parser.ParseProgram()
+	if len(errs) == 0 {
+		t.Fatalf("expected error when using 'in' as identifier")
+	}
+	if !strings.Contains(errs[0].Error(), "expected identifier") {
+		t.Fatalf("expected identifier error, got %v", errs[0])
+	}
+}
+
+func TestIllegalTokenStopsParse(t *testing.T) {
+	parser := NewParser(New("func bad() { @ }"))
+	_, errs := parser.ParseProgram()
+	if len(errs) == 0 {
+		t.Fatalf("expected error for ILLEGAL token")
+	}
+	if !strings.Contains(errs[0].Error(), "unexpected token \"@\"") {
+		t.Fatalf("unexpected error message: %v", errs[0])
+	}
+}
+
+func TestObjectLiteralParsingInsideFunction(t *testing.T) {
+	src := `
+func demo() {
+  var obj = { name: "foo" }
+  return obj.name
+}
+`
+	parser := NewParser(New(src))
+	if _, errs := parser.ParseProgram(); len(errs) > 0 {
+		t.Fatalf("unexpected parse errors: %v", errs)
+	}
+}

@@ -21,6 +21,9 @@ const (
 	RETURN
 	FUNC
 	VAR
+	IN
+	BREAK
+	CONTINUE
 	STRUCT
 	TYPE
 	TRUE
@@ -69,16 +72,19 @@ type Token struct {
 }
 
 var keywords = map[string]TokenKind{
-	"if":     IF,
-	"else":   ELSE,
-	"for":    FOR,
-	"while":  WHILE,
-	"return": RETURN,
-	"func":   FUNC,
-	"var":    VAR,
-	"struct": STRUCT,
-	"type":   TYPE,
-	"true":   TRUE,
-	"false":  FALSE,
-	"null":   NULL,
+	"if":       IF,
+	"else":     ELSE,
+	"for":      FOR,
+	"while":    WHILE,
+	"return":   RETURN,
+	"func":     FUNC,
+	"var":      VAR,
+	"in":       IN,
+	"break":    BREAK,
+	"continue": CONTINUE,
+	"struct":   STRUCT,
+	"type":     TYPE,
+	"true":     TRUE,
+	"false":    FALSE,
+	"null":     NULL,
 }

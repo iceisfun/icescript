@@ -6,10 +6,12 @@ Icescript is a small embedded scripting language implemented in Go. It ships wit
 
 - Pratt-style expression parser supporting arithmetic, comparisons, logical operators, object and array literals.
 - Control flow primitives: `if`/`else`, `for` loops over arrays, and early `return`.
+- Loop control with `break` and `continue`.
 - Seamless Go interop with `VFromGo` / `Value.ToGo` for structs, maps, slices, strings, and scalars.
 - Host function bridge (`RegisterHostFunc`) so scripts can call back into Go.
 - Descriptive runtime errors with function stack traces and source positions.
 - Immutable host-defined constants with annotated string output (e.g. `65::AncientTunnels`).
+- Built-in helpers: `sqrt`, `distance`, `sin`, `cos`, `atan`, `abs`, `len`, `contains`, `lower`, `upper`, `trim`, `sleep`
 
 ## Install
 
