@@ -223,6 +223,12 @@ func (e loopErr) Error() string {
 	}
 }
 
+type returnErr struct {
+	value Value
+}
+
+func (e returnErr) Error() string { return "return" }
+
 func convertLoopErr(vm *VM, err error) error {
 	var le loopErr
 	if errors.As(err, &le) {
@@ -933,6 +939,10 @@ func (vm *VM) Invoke(name string, args ...Value) (Value, error) {
 			val, err := vm.execBlock(env, f.Body)
 			vm.callstack = vm.callstack[:len(vm.callstack)-1]
 			if err != nil {
+				var re returnErr
+				if errors.As(err, &re) {
+					return re.value, nil
+				}
 				return VNull(), convertLoopErr(vm, err)
 			}
 			return val, nil
@@ -950,11 +960,17 @@ func (vm *VM) execBlock(env map[string]Value, blk *BlockStmt) (Value, error) {
 	for _, st := range blk.Stmts {
 		switch s := st.(type) {
 		case *ReturnStmt:
-			val, err := vm.evalExpr(env, s.Expr)
-			if err != nil {
-				return VNull(), err
+			var val Value
+			if s.Expr != nil {
+				var err error
+				val, err = vm.evalExpr(env, s.Expr)
+				if err != nil {
+					return VNull(), err
+				}
+			} else {
+				val = VNull()
 			}
-			return val, nil
+			return val, returnErr{value: val}
 		case *BreakStmt:
 			return VNull(), loopErr{kind: signalBreak, pos: s.P}
 		case *ContinueStmt:
@@ -988,6 +1004,10 @@ func (vm *VM) execBlock(env map[string]Value, blk *BlockStmt) (Value, error) {
 			if branch != nil {
 				val, err := vm.execBlock(env, branch)
 				if err != nil {
+					var re returnErr
+					if errors.As(err, &re) {
+						return val, err
+					}
 					return VNull(), err
 				}
 				last = val
@@ -1016,6 +1036,10 @@ func (vm *VM) execBlock(env map[string]Value, blk *BlockStmt) (Value, error) {
 					env[s.VarName] = item
 					val, err := vm.execBlock(env, s.Body)
 					if err != nil {
+						var re returnErr
+						if errors.As(err, &re) {
+							return val, err
+						}
 						var le loopErr
 						if errors.As(err, &le) {
 							switch le.kind {
@@ -1224,6 +1248,10 @@ func (vm *VM) evalExpr(env map[string]Value, e Expr) (Value, error) {
 				val, err := vm.execBlock(childEnv, f.Body)
 				vm.callstack = vm.callstack[:len(vm.callstack)-1]
 				if err != nil {
+					var re returnErr
+					if errors.As(err, &re) {
+						return re.value, nil
+					}
 					return VNull(), convertLoopErr(vm, err)
 				}
 				return val, nil
