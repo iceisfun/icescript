@@ -27,6 +27,8 @@ func demo() {
   for k in obj {
     print(k, obj[k])
   }
+
+  print("len obj =", len(obj))
   return obj
 }
 `
