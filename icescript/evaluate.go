@@ -3,6 +3,7 @@ package icescript
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -176,6 +177,24 @@ func (v Value) AsBool() bool {
 		return v.S != ""
 	default:
 		return false
+	}
+}
+
+func (v Value) AsString() string {
+	switch v.Kind {
+	case StringKind:
+		return v.S
+	case IntKind:
+		return fmt.Sprintf("%d", v.I)
+	case FloatKind:
+		return fmt.Sprintf("%g", v.F)
+	case BoolKind:
+		if v.B {
+			return "true"
+		}
+		return "false"
+	default:
+		return v.String()
 	}
 }
 
@@ -1071,7 +1090,7 @@ func (vm *VM) execBlock(env *environment, blk *BlockStmt) (Value, error) {
 			}
 			switch iter.Kind {
 			case ArrayKind:
-			loop:
+			loopArr:
 				for _, item := range iter.Arr {
 					if !blockEnv.assign(s.VarName, item) {
 						blockEnv.declare(s.VarName, item)
@@ -1088,7 +1107,38 @@ func (vm *VM) execBlock(env *environment, blk *BlockStmt) (Value, error) {
 							case signalContinue:
 								continue
 							case signalBreak:
-								break loop
+								break loopArr
+							}
+						}
+						return VNull(), err
+					}
+					last = val
+				}
+			case ObjectKind:
+				keys := make([]string, 0, len(iter.Obj))
+				for k := range iter.Obj {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+			loopObj:
+				for _, key := range keys {
+					envVal := VString(key)
+					if !blockEnv.assign(s.VarName, envVal) {
+						blockEnv.declare(s.VarName, envVal)
+					}
+					val, err := vm.execBlock(blockEnv, s.Body)
+					if err != nil {
+						var re returnErr
+						if errors.As(err, &re) {
+							return val, err
+						}
+						var le loopErr
+						if errors.As(err, &le) {
+							switch le.kind {
+							case signalContinue:
+								continue
+							case signalBreak:
+								break loopObj
 							}
 						}
 						return VNull(), err
@@ -1182,13 +1232,22 @@ func (vm *VM) assignValue(env *environment, target Expr, value Value) error {
 		if err != nil {
 			return err
 		}
-		idx := int(idxVal.AsInt())
 		switch seq.Kind {
 		case ArrayKind:
+			idx := int(idxVal.AsInt())
 			if idx < 0 || idx >= len(seq.Arr) {
 				return vm.rtErr(t.P, "index out of range")
 			}
 			seq.Arr[idx] = value
+		case ObjectKind:
+			if idxVal.Kind != StringKind {
+				return vm.rtErr(t.P, "object keys must be strings")
+			}
+			key := idxVal.AsString()
+			if seq.Obj == nil {
+				seq.Obj = make(map[string]Value)
+			}
+			seq.Obj[key] = value
 		default:
 			return vm.rtErr(t.P, "cannot assign into %s with index", kindName(seq.Kind))
 		}
@@ -1367,6 +1426,16 @@ func (vm *VM) evalExpr(env *environment, e Expr) (Value, error) {
 				return VNull(), vm.rtErr(ex.P, "index out of range")
 			}
 			return seq.Arr[i], nil
+		case ObjectKind:
+			if idx.Kind != StringKind {
+				return VNull(), vm.rtErr(ex.P, "object keys must be strings")
+			}
+			key := idx.AsString()
+			val, ok := seq.Obj[key]
+			if !ok {
+				return VNull(), vm.rtErr(ex.P, "unknown field %q", key)
+			}
+			return val, nil
 		default:
 			return VNull(), vm.rtErr(ex.P, "indexing not supported on %s", kindName(seq.Kind))
 		}

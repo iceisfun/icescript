@@ -24,11 +24,24 @@ func demo() {
     contains: contains("or", "world"),
   }
   sleep(0)
+  for k in obj {
+    print(k, obj[k])
+  }
   return obj
 }
 `
 
 	vm := icescript.NewVM()
+	vm.RegisterHostFunc("print", func(_ *icescript.VM, args []icescript.Value) (icescript.Value, error) {
+		for i, v := range args {
+			if i > 0 {
+				fmt.Print(" ")
+			}
+			fmt.Print(v.String())
+		}
+		fmt.Println()
+		return icescript.VNull(), nil
+	})
 
 	if err := vm.Compile(src); err != nil {
 		panic(err)

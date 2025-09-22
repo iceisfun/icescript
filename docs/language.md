@@ -50,7 +50,7 @@ for n in nums {
 }
 ```
 
-Loop variables are reassigned on each iteration. Use `break` to exit the loop early and `continue` to skip to the next iteration.
+Loop variables are reassigned on each iteration. Use `break` to exit the loop early and `continue` to skip to the next iteration. When iterating over an object, the loop variable receives each key as a string.
 
 ## Literals
 
@@ -70,7 +70,7 @@ Loop variables are reassigned on each iteration. Use `break` to exit the loop ea
 | Logical       | `&&`, `||` | Operands are coerced with `AsBool()`. |
 | Unary         | `-x`, `+x`, `!x` | Numeric sign flip/identity and logical NOT. |
 | Member Access | `object.field` | Errors if the left side is not an object or the field is missing. |
-| Indexing      | `array[index]` | Bounds-checked; indices are truncated to integers. |
+| Indexing      | `array[index]`, `object[key]` | Arrays use numeric indices; object keys must be strings. |
 
 The `+` operator concatenates strings when either operand is a string.
 

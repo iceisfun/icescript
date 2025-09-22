@@ -192,3 +192,24 @@ func demo() {
 		t.Fatalf("expected not=true")
 	}
 }
+
+func TestObjectIteration(t *testing.T) {
+	src := `
+func demo() {
+  var obj = { a: 1, b: 2, c: 3 }
+  var total = 0
+  for key in obj {
+    total = total + obj[key]
+  }
+  return total
+}
+`
+	vm := mustCompile(t, src, nil)
+	out, err := vm.Invoke("demo")
+	if err != nil {
+		t.Fatalf("invoke failed: %v", err)
+	}
+	if out.AsInt() != 6 {
+		t.Fatalf("expected sum 6, got %d", out.AsInt())
+	}
+}
