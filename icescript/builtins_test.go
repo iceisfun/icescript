@@ -17,6 +17,7 @@ func demo() {
     abs: abs(-5),
     lenStr: len("hello"),
     lenArr: len([1, 2, 3]),
+    lenObj: len({ a: 1, b: 2 }),
     contains: contains("ell", "hello"),
     lower: lower("HELLO"),
     upper: upper("hello"),
@@ -45,6 +46,9 @@ func demo() {
 	}
 	if obj["lenArr"].AsInt() != 3 {
 		t.Fatalf("expected lenArr=3, got %d", obj["lenArr"].AsInt())
+	}
+	if obj["lenObj"].AsInt() != 2 {
+		t.Fatalf("expected lenObj=2, got %d", obj["lenObj"].AsInt())
 	}
 	if !obj["contains"].AsBool() {
 		t.Fatalf("expected contains=true")

@@ -31,21 +31,25 @@ const (
 	NULL
 
 	// Operators
-	ASSIGN  // =
-	PLUS    // +
-	MINUS   // -
-	STAR    // *
-	SLASH   // /
-	PERCENT // %
-	BANG    // !
-	EQ      // ==
-	NEQ     // !=
-	LT      // <
-	GT      // >
-	LTE     // <=
-	GTE     // >=
-	AND     // &&
-	OR      // ||
+	ASSIGN     // =
+	PLUS       // +
+	MINUS      // -
+	STAR       // *
+	SLASH      // /
+	PERCENT    // %
+	BANG       // !
+	EQ         // ==
+	NEQ        // !=
+	LT         // <
+	GT         // >
+	LTE        // <=
+	GTE        // >=
+	AND        // &&
+	OR         // ||
+	PLUSEQ     // +=
+	MINUSEQ    // -=
+	PLUSPLUS   // ++
+	MINUSMINUS // --
 
 	// Delimiters
 	LPAREN // (

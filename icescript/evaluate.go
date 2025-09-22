@@ -640,7 +640,8 @@ func (p *Parser) parseStmt() Stmt {
 
 	// expression or assignment
 	ex := p.parseExpr(0)
-	if p.cur.Literal == "=" {
+	switch p.cur.Kind {
+	case ASSIGN:
 		assignable := isAssignableExpr(ex)
 		pos := ex.Pos()
 		eqTok := p.cur
@@ -654,6 +655,34 @@ func (p *Parser) parseStmt() Stmt {
 			return &ExprStmt{X: ex, P: pos}
 		}
 		return &AssignStmt{Target: ex, Value: val, P: pos}
+	case PLUSEQ, MINUSEQ:
+		assignable := isAssignableExpr(ex)
+		pos := ex.Pos()
+		op := "+"
+		if p.cur.Kind == MINUSEQ {
+			op = "-"
+		}
+		p.next()
+		rhs := p.parseExpr(0)
+		if !assignable {
+			p.errf(pos, "invalid assignment target")
+			return &ExprStmt{X: ex, P: pos}
+		}
+		return &AssignStmt{Target: ex, Value: &BinaryExpr{Op: op, Left: ex, Right: rhs, P: pos}, P: pos}
+	case PLUSPLUS, MINUSMINUS:
+		assignable := isAssignableExpr(ex)
+		pos := ex.Pos()
+		op := "+"
+		if p.cur.Kind == MINUSMINUS {
+			op = "-"
+		}
+		one := &NumberLit{Raw: "1", P: p.cur.Position}
+		p.next()
+		if !assignable {
+			p.errf(pos, "invalid assignment target")
+			return &ExprStmt{X: ex, P: pos}
+		}
+		return &AssignStmt{Target: ex, Value: &BinaryExpr{Op: op, Left: ex, Right: one, P: pos}, P: pos}
 	}
 	if p.cur.Literal == ";" {
 		p.next()

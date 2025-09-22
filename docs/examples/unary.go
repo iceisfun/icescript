@@ -14,6 +14,8 @@ func main() {
 func demo() {
   var x = 5
   var flag = true
+  x++
+  x--
   return { neg: -x, pos: +x, not: !flag }
 }
 `

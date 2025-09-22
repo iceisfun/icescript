@@ -69,6 +69,8 @@ Loop variables are reassigned on each iteration. Use `break` to exit the loop ea
 | Comparison    | `==`, `!=`, `<`, `<=`, `>`, `>=` | `==` / `!=` compare stringified values. Relational operators compare numerically. |
 | Logical       | `&&`, `||` | Operands are coerced with `AsBool()`. |
 | Unary         | `-x`, `+x`, `!x` | Numeric sign flip/identity and logical NOT. |
+| Compound      | `+=`, `-=` | Mutating addition/subtraction on variables, fields, and indices. |
+| Postfix       | `expr++`, `expr--` | Increment/decrement assignable expressions. |
 | Member Access | `object.field` | Errors if the left side is not an object or the field is missing. |
 | Indexing      | `array[index]`, `object[key]` | Arrays use numeric indices; object keys must be strings. |
 

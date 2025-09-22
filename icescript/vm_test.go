@@ -171,8 +171,9 @@ func demo() {
 func TestUnaryOperators(t *testing.T) {
 	src := `
 func demo() {
-  var x = 3
+  var x = 2
   var flag = false
+  x++
   return { neg: -x, pos: +x, not: !flag }
 }
 `
@@ -211,5 +212,37 @@ func demo() {
 	}
 	if out.AsInt() != 6 {
 		t.Fatalf("expected sum 6, got %d", out.AsInt())
+	}
+}
+
+func TestCompoundAssignments(t *testing.T) {
+	src := `
+func demo() {
+  var x = 1
+  x += 2
+  x -= 1
+  x++
+  x--
+  var arr = [1, 2]
+  arr[0] += 3
+  var obj = { a: 1 }
+  obj.a += 4
+  return { x: x, arr: arr[0], obj: obj.a }
+}
+`
+	vm := mustCompile(t, src, nil)
+	out, err := vm.Invoke("demo")
+	if err != nil {
+		t.Fatalf("invoke failed: %v", err)
+	}
+	obj := out.Obj
+	if obj["x"].AsInt() != 2 {
+		t.Fatalf("expected x=2, got %d", obj["x"].AsInt())
+	}
+	if obj["arr"].AsInt() != 4 {
+		t.Fatalf("expected arr=4, got %d", obj["arr"].AsInt())
+	}
+	if obj["obj"].AsInt() != 5 {
+		t.Fatalf("expected obj.a=5, got %d", obj["obj"].AsInt())
 	}
 }

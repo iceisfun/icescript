@@ -101,10 +101,34 @@ func (l *Lexer) NextToken() Token {
 			return tok
 		}
 	case '+':
+		switch l.peekChar() {
+		case '+':
+			l.readChar()
+			tok := Token{Kind: PLUSPLUS, Literal: "++", Position: pos}
+			l.readChar()
+			return tok
+		case '=':
+			l.readChar()
+			tok := Token{Kind: PLUSEQ, Literal: "+=", Position: pos}
+			l.readChar()
+			return tok
+		}
 		tok := Token{Kind: PLUS, Literal: "+", Position: pos}
 		l.readChar()
 		return tok
 	case '-':
+		switch l.peekChar() {
+		case '-':
+			l.readChar()
+			tok := Token{Kind: MINUSMINUS, Literal: "--", Position: pos}
+			l.readChar()
+			return tok
+		case '=':
+			l.readChar()
+			tok := Token{Kind: MINUSEQ, Literal: "-=", Position: pos}
+			l.readChar()
+			return tok
+		}
 		tok := Token{Kind: MINUS, Literal: "-", Position: pos}
 		l.readChar()
 		return tok
