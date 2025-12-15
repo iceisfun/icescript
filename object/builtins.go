@@ -35,6 +35,15 @@ var Builtins = []struct {
 		}},
 	},
 	{
+		"panic",
+		&Builtin{Fn: func(args ...Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+			}
+			return &Panic{Message: args[0].Inspect()}
+		}},
+	},
+	{
 		"push",
 		&Builtin{Fn: func(args ...Object) Object {
 			if len(args) != 2 {

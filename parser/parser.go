@@ -635,7 +635,10 @@ func (p *Parser) parseFunctionDeclaration() ast.Statement {
 	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
 	// Function literal part
-	lit := &ast.FunctionLiteral{Token: token.Token{Type: token.FUNCTION, Literal: "func"}}
+	lit := &ast.FunctionLiteral{
+		Token: token.Token{Type: token.FUNCTION, Literal: "func"},
+		Name:  stmt.Name.Value,
+	}
 
 	if !p.expectPeek(token.LPAREN) {
 		return nil

@@ -41,7 +41,7 @@ type Frame struct {
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
-	mainFn := &object.CompiledFunction{Instructions: bytecode.Instructions}
+	mainFn := &object.CompiledFunction{Instructions: bytecode.Instructions, SourceMap: bytecode.SourceMap, Name: "main"}
 	mainClosure := &object.Closure{Fn: mainFn}
 	mainFrame := NewFrame(mainClosure, 0)
 
@@ -175,7 +175,7 @@ func (vm *VM) Run(ctx context.Context) error {
 			vm.currentFrame().ip += 2
 			err := vm.push(vm.constants[constIndex])
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 
 		case opcode.OpPop:
@@ -184,39 +184,39 @@ func (vm *VM) Run(ctx context.Context) error {
 		case opcode.OpAdd, opcode.OpSub, opcode.OpMul, opcode.OpDiv, opcode.OpMod:
 			err := vm.executeBinaryOperation(op)
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 		case opcode.OpEqual, opcode.OpNotEqual, opcode.OpGreaterThan:
 			err := vm.executeComparison(op)
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 
 		case opcode.OpBang:
 			err := vm.executeBangOperator()
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 		case opcode.OpMinus:
 			err := vm.executeMinusOperator()
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 
 		case opcode.OpTrue:
 			err := vm.push(True)
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 		case opcode.OpFalse:
 			err := vm.push(False)
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 		case opcode.OpNull:
 			err := vm.push(Null)
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 
 		case opcode.OpJump:
@@ -241,7 +241,7 @@ func (vm *VM) Run(ctx context.Context) error {
 			vm.currentFrame().ip += 2
 			err := vm.push(vm.globals[globalIndex])
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 
 		case opcode.OpSetLocal:
@@ -256,7 +256,7 @@ func (vm *VM) Run(ctx context.Context) error {
 			frame := vm.currentFrame()
 			err := vm.push(vm.stack[frame.basePointer+int(localIndex)])
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 
 		case opcode.OpArray:
@@ -264,7 +264,7 @@ func (vm *VM) Run(ctx context.Context) error {
 			vm.currentFrame().ip += 2
 
 			if vm.sp-numElements < 0 {
-				return fmt.Errorf("stack underflow in OpArray")
+				return vm.newRuntimeError("stack underflow in OpArray")
 			}
 
 			array := vm.buildArray(vm.sp-numElements, vm.sp)
@@ -272,7 +272,7 @@ func (vm *VM) Run(ctx context.Context) error {
 
 			err := vm.push(array)
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 
 		case opcode.OpHash:
@@ -280,18 +280,18 @@ func (vm *VM) Run(ctx context.Context) error {
 			vm.currentFrame().ip += 2
 
 			if vm.sp-numElements < 0 {
-				return fmt.Errorf("stack underflow in OpHash")
+				return vm.newRuntimeError("stack underflow in OpHash")
 			}
 
 			hash, err := vm.buildHash(vm.sp-numElements, vm.sp)
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 			vm.sp = vm.sp - numElements
 
 			err = vm.push(hash)
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 
 		case opcode.OpIndex:
@@ -300,7 +300,7 @@ func (vm *VM) Run(ctx context.Context) error {
 
 			err := vm.executeIndexExpression(left, index)
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 
 		case opcode.OpSlice:
@@ -310,7 +310,7 @@ func (vm *VM) Run(ctx context.Context) error {
 
 			err := vm.executeSliceExpression(left, start, end)
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 
 		case opcode.OpCall:
@@ -323,12 +323,12 @@ func (vm *VM) Run(ctx context.Context) error {
 			switch callee := callee.(type) {
 			case *object.Closure:
 				if int(numArgs) != callee.Fn.NumParameters {
-					return fmt.Errorf("wrong number of arguments: want=%d, got=%d", callee.Fn.NumParameters, numArgs)
+					return vm.newRuntimeError("wrong number of arguments: want=%d, got=%d", callee.Fn.NumParameters, numArgs)
 				}
 				frame := NewFrame(callee, vm.sp-int(numArgs))
 				err := vm.pushFrame(frame)
 				if err != nil {
-					return err
+					return vm.newRuntimeError("%s", err.Error())
 				}
 				vm.sp = frame.basePointer + callee.Fn.NumLocals // Reserve space? Or stack grows dynamically?
 
@@ -337,13 +337,16 @@ func (vm *VM) Run(ctx context.Context) error {
 				result := callee.Fn(args...)
 				vm.sp = vm.sp - int(numArgs) - 1 // Pop args and function
 				if result != nil {
+					if rtErr, ok := result.(*object.Panic); ok {
+						return vm.newRuntimeError("%s", rtErr.Message)
+					}
 					vm.push(result)
 				} else {
 					vm.push(Null)
 				}
 
 			default:
-				return fmt.Errorf("calling non-function")
+				return vm.newRuntimeError("calling non-function")
 			}
 
 		case opcode.OpReturnValue:
@@ -361,7 +364,7 @@ func (vm *VM) Run(ctx context.Context) error {
 
 			err := vm.push(returnValue)
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 
 		case opcode.OpReturn:
@@ -376,7 +379,7 @@ func (vm *VM) Run(ctx context.Context) error {
 
 			err := vm.push(Null)
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 
 		case opcode.OpClosure:
@@ -385,12 +388,12 @@ func (vm *VM) Run(ctx context.Context) error {
 			vm.currentFrame().ip += 3
 
 			if vm.sp-int(numFree) < 0 {
-				return fmt.Errorf("stack underflow in OpClosure")
+				return vm.newRuntimeError("stack underflow in OpClosure")
 			}
 
 			err := vm.pushClosure(int(constIndex), int(numFree))
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 
 		case opcode.OpGetFree:
@@ -400,7 +403,7 @@ func (vm *VM) Run(ctx context.Context) error {
 			currentClosure := vm.currentFrame().cl
 			err := vm.push(currentClosure.Free[freeIndex])
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 
 		case opcode.OpGetBuiltin:
@@ -410,7 +413,7 @@ func (vm *VM) Run(ctx context.Context) error {
 			definition := object.Builtins[builtinIndex]
 			err := vm.push(definition.Builtin)
 			if err != nil {
-				return err
+				return vm.newRuntimeError("%s", err.Error())
 			}
 		}
 	}
@@ -426,6 +429,90 @@ func (vm *VM) StackTop() object.Object {
 
 func (vm *VM) LastPoppedStackElem() object.Object {
 	return vm.stack[vm.sp]
+}
+
+type RuntimeError struct {
+	Message string
+	Stack   []StackFrameInfo
+}
+
+func (e *RuntimeError) Error() string {
+	var msg string
+	msg = fmt.Sprintf("Runtime error: %s\n", e.Message)
+	msg += "Stack trace:\n"
+	for _, f := range e.Stack {
+		msg += fmt.Sprintf("  at %s (%s:%d)\n", f.FunctionName, "script.ice", f.Line)
+	}
+	return msg
+}
+
+type StackFrameInfo struct {
+	FunctionName string
+	FileName     string
+	Line         int
+}
+
+func (vm *VM) newRuntimeError(format string, a ...interface{}) *RuntimeError {
+	return &RuntimeError{
+		Message: fmt.Sprintf(format, a...),
+		Stack:   vm.stackTrace(),
+	}
+}
+
+func (vm *VM) stackTrace() []StackFrameInfo {
+	var stack []StackFrameInfo
+
+	// Iterate backwards from current frame
+	for i := vm.framesIndex - 1; i >= 0; i-- {
+		frame := vm.frames[i]
+		if frame.cl == nil {
+			continue
+		}
+
+		line := 0
+		if frame.ip >= 0 {
+			// Find closest line number in SourceMap
+			// Instruction positions in SourceMap are 0-indexed instruction offsets?
+			// Compiler emits: sourceMap[pos] = line.
+			// frame.ip is index into Instructions slice.
+			if l, ok := frame.cl.Fn.SourceMap[frame.ip]; ok {
+				line = l
+			} else {
+				// Fallback or binary search if map is sparse?
+				// My map implementation in compiler is "map[int]int" where int is instruction position.
+				// frame.ip points to the *last executed* instruction (or next? Opcode logic updates ip).
+				// In Run(), switch cases do `vm.currentFrame().ip += width`.
+				// SO `ip` points to the *next* instruction.
+				// The instruction that caused error is likely `ip - width`.
+				// But simpler to just look for approximate.
+				// For now let's try direct lookup. Using the current IP might be "next" instruction.
+				// Better logic: iterate backwards from IP to find a mapped line?
+			}
+
+			// Try to find line for current IP or previous instructions if not mapped
+			if line == 0 {
+				for p := frame.ip; p >= 0; p-- {
+					if l, ok := frame.cl.Fn.SourceMap[p]; ok {
+						line = l
+						break
+					}
+				}
+			}
+		}
+
+		name := frame.cl.Fn.Name
+		if name == "" {
+			name = "anonymous"
+		}
+
+		info := StackFrameInfo{
+			FunctionName: name,
+			FileName:     "script.ice",
+			Line:         line,
+		}
+		stack = append(stack, info)
+	}
+	return stack
 }
 
 func (vm *VM) push(o object.Object) error {

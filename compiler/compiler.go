@@ -15,12 +15,14 @@ type Compiler struct {
 
 	scopes     []CompilationScope
 	scopeIndex int
+	lastLine   int
 }
 
 type CompilationScope struct {
 	instructions        []byte
 	lastInstruction     EmittedInstruction
 	previousInstruction EmittedInstruction
+	sourceMap           map[int]int // instruction index -> line number
 }
 
 type EmittedInstruction struct {
@@ -33,6 +35,7 @@ func New() *Compiler {
 		instructions:        []byte{},
 		lastInstruction:     EmittedInstruction{},
 		previousInstruction: EmittedInstruction{},
+		sourceMap:           make(map[int]int),
 	}
 
 	symbolTable := NewSymbolTable()
@@ -67,6 +70,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.ExpressionStatement:
+		c.lastLine = node.Token.Line
 		err := c.Compile(node.Expression)
 		if err != nil {
 			return err
@@ -74,6 +78,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(opcode.OpPop)
 
 	case *ast.InfixExpression:
+		c.lastLine = node.Token.Line
 		if node.Operator == "<" {
 			err := c.Compile(node.Right) // Reorder for <
 			if err != nil {
@@ -88,14 +93,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 		if node.Operator == "<=" {
-			// a <= b  <=>  not (a > b)  <-- Wait, a > b is false if a == b.
-			// a <= b  <=>  b >= a  <=>  not (b < a) ?
-			// easier: a <= b is ! (a > b)  <-- Correct, if no NaNs.
-			// Or implement OpLessThanEqual.
-			// Let's implement OpGreaterThan and use logic.
-			// a <= b  ->  !(a > b)
-			// (Assuming total order)
-
+			// a <= b  <=>  not (a > b)
 			// a > b
 			err := c.Compile(node.Left)
 			if err != nil {
@@ -158,14 +156,17 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.IntegerLiteral:
+		c.lastLine = node.Token.Line
 		integer := &object.Integer{Value: node.Value}
 		c.emit(opcode.OpConstant, c.addConstant(integer))
 
 	case *ast.FloatLiteral:
+		c.lastLine = node.Token.Line
 		f := &object.Float{Value: node.Value}
 		c.emit(opcode.OpConstant, c.addConstant(f))
 
 	case *ast.Boolean:
+		c.lastLine = node.Token.Line
 		if node.Value {
 			c.emit(opcode.OpTrue)
 		} else {
@@ -173,6 +174,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.PrefixExpression:
+		c.lastLine = node.Token.Line
 		err := c.Compile(node.Right)
 		if err != nil {
 			return err
@@ -188,6 +190,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.IfExpression:
+		c.lastLine = node.Token.Line
 		err := c.Compile(node.Condition)
 		if err != nil {
 			return err
@@ -236,6 +239,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.LetStatement:
+		c.lastLine = node.Token.Line
 		symbol := c.symbolTable.Define(node.Name.Value)
 		err := c.Compile(node.Value)
 		if err != nil {
@@ -249,6 +253,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.AssignExpression:
+		c.lastLine = node.Token.Line
 		symbol, ok := c.symbolTable.Resolve(node.Name.Value)
 		if !ok {
 			return fmt.Errorf("variable %s not defined", node.Name.Value)
@@ -270,6 +275,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.Identifier:
+		c.lastLine = node.Token.Line
 		symbol, ok := c.symbolTable.Resolve(node.Value)
 
 		if !ok {
@@ -287,10 +293,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.StringLiteral:
+		c.lastLine = node.Token.Line
 		str := &object.String{Value: node.Value}
 		c.emit(opcode.OpConstant, c.addConstant(str))
 
 	case *ast.ArrayLiteral:
+		c.lastLine = node.Token.Line
 		for _, el := range node.Elements {
 			err := c.Compile(el)
 			if err != nil {
@@ -300,6 +308,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(opcode.OpArray, len(node.Elements))
 
 	case *ast.MapLiteral:
+		c.lastLine = node.Token.Line
 		keys := []ast.Expression{}
 		for k := range node.Pairs {
 			keys = append(keys, k)
@@ -324,6 +333,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(opcode.OpHash, len(node.Pairs)*2)
 
 	case *ast.IndexExpression:
+		c.lastLine = node.Token.Line
 		err := c.Compile(node.Left)
 		if err != nil {
 			return err
@@ -337,6 +347,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(opcode.OpIndex)
 
 	case *ast.SliceExpression:
+		c.lastLine = node.Token.Line
 		err := c.Compile(node.Left)
 		if err != nil {
 			return err
@@ -363,6 +374,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(opcode.OpSlice)
 
 	case *ast.FunctionLiteral:
+		c.lastLine = node.Token.Line
 		c.enterScope()
 
 		for _, p := range node.Parameters {
@@ -383,7 +395,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		freeSymbols := c.symbolTable.FreeSymbols
 		numLocals := c.symbolTable.numDefinitions
-		instructions := c.leaveScope()
+		instructions, sourceMap := c.leaveScope()
 
 		for _, s := range freeSymbols {
 			// Emit code to load the free variables onto stack before creating closure
@@ -398,11 +410,14 @@ func (c *Compiler) Compile(node ast.Node) error {
 			Instructions:  instructions,
 			NumLocals:     numLocals,
 			NumParameters: len(node.Parameters),
+			SourceMap:     sourceMap,
+			Name:          node.Name,
 		}
 
 		c.emit(opcode.OpClosure, c.addConstant(compiledFn), len(freeSymbols))
 
 	case *ast.ReturnStatement:
+		c.lastLine = node.Token.Line
 		err := c.Compile(node.ReturnValue)
 		if err != nil {
 			return err
@@ -411,6 +426,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(opcode.OpReturnValue)
 
 	case *ast.CallExpression:
+		c.lastLine = node.Token.Line
 		err := c.Compile(node.Function)
 		if err != nil {
 			return err
@@ -426,6 +442,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(opcode.OpCall, len(node.Arguments))
 
 	case *ast.ForStatement:
+		c.lastLine = node.Token.Line
 		// Init
 		if node.Init != nil {
 			err := c.Compile(node.Init)
@@ -471,24 +488,6 @@ func (c *Compiler) Compile(node ast.Node) error {
 	return nil
 }
 
-func (c *Compiler) Bytecode() *Bytecode {
-	return &Bytecode{
-		Instructions: c.currentInstructions(),
-		Constants:    c.constants,
-		SymbolTable:  c.symbolTable,
-	}
-}
-
-func (c *Compiler) SymbolTable() *SymbolTable {
-	return c.symbolTable
-}
-
-type Bytecode struct {
-	Instructions []byte
-	Constants    []object.Object
-	SymbolTable  *SymbolTable
-}
-
 func (c *Compiler) addConstant(obj object.Object) int {
 	c.constants = append(c.constants, obj)
 	return len(c.constants) - 1
@@ -499,6 +498,11 @@ func (c *Compiler) emit(op opcode.Opcode, operands ...int) int {
 	pos := c.addInstruction(ins)
 
 	c.setLastInstruction(op, pos)
+
+	// Record line number
+	if c.lastLine > 0 {
+		c.scopes[c.scopeIndex].sourceMap[pos] = c.lastLine
+	}
 
 	return pos
 }
@@ -565,18 +569,40 @@ func (c *Compiler) enterScope() {
 		instructions:        []byte{},
 		lastInstruction:     EmittedInstruction{},
 		previousInstruction: EmittedInstruction{},
+		sourceMap:           make(map[int]int),
 	}
 	c.scopes = append(c.scopes, scope)
 	c.scopeIndex++
 	c.symbolTable = NewEnclosedSymbolTable(c.symbolTable)
 }
 
-func (c *Compiler) leaveScope() []byte {
+func (c *Compiler) leaveScope() ([]byte, map[int]int) {
 	instructions := c.currentInstructions()
+	sourceMap := c.scopes[c.scopeIndex].sourceMap
 
 	c.scopes = c.scopes[:len(c.scopes)-1]
 	c.scopeIndex--
 	c.symbolTable = c.symbolTable.Outer
 
-	return instructions
+	return instructions, sourceMap
+}
+
+type Bytecode struct {
+	Instructions []byte
+	Constants    []object.Object
+	SymbolTable  *SymbolTable
+	SourceMap    map[int]int
+}
+
+func (c *Compiler) Bytecode() *Bytecode {
+	return &Bytecode{
+		Instructions: c.currentInstructions(),
+		Constants:    c.constants,
+		SymbolTable:  c.symbolTable,
+		SourceMap:    c.scopes[c.scopeIndex].sourceMap,
+	}
+}
+
+func (c *Compiler) SymbolTable() *SymbolTable {
+	return c.symbolTable
 }

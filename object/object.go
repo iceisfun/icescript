@@ -175,10 +175,19 @@ type CompiledFunction struct {
 	Instructions  []byte
 	NumLocals     int
 	NumParameters int
+	SourceMap     map[int]int
+	Name          string
 }
 
 func (cf *CompiledFunction) Inspect() string  { return fmt.Sprintf("CompiledFunction[%p]", cf) }
 func (cf *CompiledFunction) Type() ObjectType { return COMPILED_FUNCTION_OBJ }
+
+type Panic struct {
+	Message string
+}
+
+func (p *Panic) Inspect() string  { return "PANIC: " + p.Message }
+func (p *Panic) Type() ObjectType { return ERROR_OBJ }
 
 type Closure struct {
 	Fn   *CompiledFunction
