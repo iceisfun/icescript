@@ -3,6 +3,8 @@ package vm
 import (
 	"context"
 	"fmt"
+	"math/rand"
+	"time"
 
 	"github.com/iceisfun/icescript/compiler"
 	"github.com/iceisfun/icescript/object"
@@ -14,30 +16,39 @@ const GlobalSize = 65536
 const MaxFrames = 1024
 
 var (
-	True  = &object.Boolean{Value: true}
-	False = &object.Boolean{Value: false}
-	Null  = &object.Null{}
+	True  = object.True // Use shared instances from object package
+	False = object.False
+	Null  = object.NullObj
 )
 
 type VM struct {
 	constants []object.Object
-	globals   []object.Object
+	stack     []object.Object
+	sp        int // Always points to the next value. Top of stack is stack[sp-1]
 
-	stack []object.Object
-	sp    int // Always points to the next value. Top of stack is stack[sp-1]
+	globals []object.Object
 
-	// Call frames
 	frames      []*Frame
 	framesIndex int
 
 	symbolTable *compiler.SymbolTable
 	lastPopped  object.Object
+
+	rng *rand.Rand
 }
 
 type Frame struct {
 	cl          *object.Closure
 	ip          int
 	basePointer int
+}
+
+func (vm *VM) Rand() *rand.Rand {
+	return vm.rng
+}
+
+func (vm *VM) Now() time.Time {
+	return time.Now()
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
@@ -56,6 +67,7 @@ func New(bytecode *compiler.Bytecode) *VM {
 		frames:      frames,
 		framesIndex: 1,
 		symbolTable: bytecode.SymbolTable,
+		rng:         rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
@@ -334,7 +346,7 @@ func (vm *VM) Run(ctx context.Context) error {
 
 			case *object.Builtin:
 				args := vm.stack[vm.sp-int(numArgs) : vm.sp] // Get args slice
-				result := callee.Fn(args...)
+				result := callee.Fn(vm, args...)
 				vm.sp = vm.sp - int(numArgs) - 1 // Pop args and function
 				if result != nil {
 					if rtErr, ok := result.(*object.Panic); ok {
@@ -576,6 +588,10 @@ func (vm *VM) executeComparison(op opcode.Opcode) error {
 		return vm.executeIntegerComparison(op, left, right)
 	}
 
+	if left.Type() == object.FLOAT_OBJ && right.Type() == object.FLOAT_OBJ {
+		return vm.executeFloatComparison(op, left, right)
+	}
+
 	switch op {
 	case opcode.OpEqual:
 		return vm.push(nativeBoolToBooleanObject(right == left))
@@ -583,6 +599,25 @@ func (vm *VM) executeComparison(op opcode.Opcode) error {
 		return vm.push(nativeBoolToBooleanObject(right != left))
 	default:
 		return fmt.Errorf("unknown operator: %d (%s %s)", op, left.Type(), right.Type())
+	}
+}
+
+func (vm *VM) executeFloatComparison(
+	op opcode.Opcode,
+	left, right object.Object,
+) error {
+	leftVal := left.(*object.Float).Value
+	rightVal := right.(*object.Float).Value
+
+	switch op {
+	case opcode.OpEqual:
+		return vm.push(nativeBoolToBooleanObject(leftVal == rightVal))
+	case opcode.OpNotEqual:
+		return vm.push(nativeBoolToBooleanObject(leftVal != rightVal))
+	case opcode.OpGreaterThan:
+		return vm.push(nativeBoolToBooleanObject(leftVal > rightVal))
+	default: // Support less than via reordering or future opcode
+		return fmt.Errorf("unknown operator: %d", op)
 	}
 }
 

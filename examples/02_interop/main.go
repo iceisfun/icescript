@@ -56,7 +56,7 @@ func main() {
 
 	// Inject "Callback" (Builtin Function)
 	machine.SetGlobal(callbackSym.Index, &object.Builtin{
-		Fn: func(args ...object.Object) object.Object {
+		Fn: func(ctx object.BuiltinContext, args ...object.Object) object.Object {
 			// Arguments from Icescript
 			a := args[0].(*object.Integer).Value
 			b := args[1].(*object.Integer).Value

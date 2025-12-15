@@ -6,8 +6,16 @@ import (
 	"hash/fnv"
 	"strings"
 
+	"math/rand"
+	"time"
+
 	"github.com/iceisfun/icescript/ast"
 )
+
+type BuiltinContext interface {
+	Rand() *rand.Rand
+	Now() time.Time
+}
 
 type ObjectType string
 
@@ -112,7 +120,7 @@ func (s *String) HashKey() HashKey {
 	return HashKey{Type: s.Type(), Value: h.Sum64()}
 }
 
-type BuiltinFunction func(args ...Object) Object
+type BuiltinFunction func(ctx BuiltinContext, args ...Object) Object
 
 type Builtin struct {
 	Fn BuiltinFunction
@@ -200,7 +208,7 @@ func (c *Closure) Type() ObjectType { return CLOSURE_OBJ }
 // Helpers
 func NativeBoolToBooleanObject(input bool) *Boolean {
 	if input {
-		return &Boolean{Value: true}
+		return True
 	}
-	return &Boolean{Value: false}
+	return False
 }

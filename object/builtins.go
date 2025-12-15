@@ -1,6 +1,10 @@
 package object
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+	"strings"
+)
 
 var Builtins = []struct {
 	Name    string
@@ -8,7 +12,7 @@ var Builtins = []struct {
 }{
 	{
 		"len",
-		&Builtin{Fn: func(args ...Object) Object {
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 1 {
 				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
 			}
@@ -25,7 +29,7 @@ var Builtins = []struct {
 	},
 	{
 		"print",
-		&Builtin{Fn: func(args ...Object) Object {
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			out := []interface{}{}
 			for _, arg := range args {
 				out = append(out, arg.Inspect())
@@ -36,7 +40,7 @@ var Builtins = []struct {
 	},
 	{
 		"panic",
-		&Builtin{Fn: func(args ...Object) Object {
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 1 {
 				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
 			}
@@ -45,7 +49,7 @@ var Builtins = []struct {
 	},
 	{
 		"push",
-		&Builtin{Fn: func(args ...Object) Object {
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 2 {
 				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
 			}
@@ -56,14 +60,12 @@ var Builtins = []struct {
 
 			arr := args[0].(*Array)
 			arr.Elements = append(arr.Elements, args[1])
-			// Return successful array or null? Standard is usually returning the new length or the array.
-			// Let's return the array for chaining or just consistency.
 			return arr
 		}},
 	},
 	{
 		"keys",
-		&Builtin{Fn: func(args ...Object) Object {
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 1 {
 				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
 			}
@@ -78,6 +80,180 @@ var Builtins = []struct {
 				elements = append(elements, pair.Key)
 			}
 			return &Array{Elements: elements}
+		}},
+	},
+	{
+		"contains",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 2 {
+				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+			}
+
+			switch container := args[0].(type) {
+			case *Array:
+				for _, el := range container.Elements {
+					if el.Inspect() == args[1].Inspect() { // Simple equality check for now
+						return True
+					}
+				}
+				return False
+			case *String:
+				sub, ok := args[1].(*String)
+				if !ok {
+					return &Error{Message: fmt.Sprintf("second argument to `contains` for STRING must be STRING, got %s", args[1].Type())}
+				}
+				if strings.Contains(container.Value, sub.Value) {
+					return True
+				}
+				return False
+			case *Hash:
+				key, ok := args[1].(Hashable)
+				if !ok {
+					return &Error{Message: fmt.Sprintf("unusable as hash key: %s", args[1].Type())}
+				}
+				if _, ok := container.Pairs[key.HashKey()]; ok {
+					return True
+				}
+				return False
+			default:
+				return &Error{Message: fmt.Sprintf("argument to `contains` not supported, got %s", args[0].Type())}
+			}
+		}},
+	},
+	{
+		"hypot",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 4 {
+				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=4", len(args))}
+			}
+			vals := make([]float64, 4)
+			for i, arg := range args {
+				switch v := arg.(type) {
+				case *Integer:
+					vals[i] = float64(v.Value)
+				case *Float:
+					vals[i] = v.Value
+				default:
+					return &Error{Message: fmt.Sprintf("argument %d to `hypot` must be number, got %s", i, arg.Type())}
+				}
+			}
+			return &Float{Value: math.Hypot(vals[2]-vals[0], vals[3]-vals[1])}
+		}},
+	},
+	{
+		"sqrt",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+			}
+			var val float64
+			switch v := args[0].(type) {
+			case *Integer:
+				val = float64(v.Value)
+			case *Float:
+				val = v.Value
+			default:
+				return &Error{Message: fmt.Sprintf("argument to `sqrt` must be number, got %s", args[0].Type())}
+			}
+			return &Float{Value: math.Sqrt(val)}
+		}},
+	},
+	{
+		"atan2",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 2 {
+				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+			}
+			vals := make([]float64, 2)
+			for i, arg := range args {
+				switch v := arg.(type) {
+				case *Integer:
+					vals[i] = float64(v.Value)
+				case *Float:
+					vals[i] = v.Value
+				default:
+					return &Error{Message: fmt.Sprintf("argument %d to `atan2` must be number, got %s", i, arg.Type())}
+				}
+			}
+			return &Float{Value: math.Atan2(vals[0], vals[1])}
+		}},
+	},
+	{
+		"equalFold",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 2 {
+				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+			}
+			s1, ok1 := args[0].(*String)
+			s2, ok2 := args[1].(*String)
+			if !ok1 || !ok2 {
+				return &Error{Message: "arguments to `equalFold` must be STRINGs"}
+			}
+			return NativeBoolToBooleanObject(strings.EqualFold(s1.Value, s2.Value))
+		}},
+	},
+	{
+		"seed",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+			}
+			if ctx == nil || ctx.Rand() == nil {
+				return &Error{Message: "RNG not available in this context"}
+			}
+
+			var val int64
+			switch v := args[0].(type) {
+			case *Integer:
+				val = v.Value
+			default:
+				return &Error{Message: fmt.Sprintf("argument to `seed` must be INTEGER, got %s", args[0].Type())}
+			}
+			ctx.Rand().Seed(val)
+			return NullObj
+		}},
+	},
+	{
+		"random",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 0 {
+				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
+			}
+			if ctx == nil || ctx.Rand() == nil {
+				return &Error{Message: "RNG not available in this context"}
+			}
+			return &Float{Value: ctx.Rand().Float64()}
+		}},
+	},
+	{
+		"now",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 0 {
+				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
+			}
+			if ctx == nil {
+				return &Error{Message: "Context not available"}
+			}
+			return &Integer{Value: ctx.Now().UnixMilli()}
+		}},
+	},
+	{
+		"since",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+			}
+			if ctx == nil {
+				return &Error{Message: "Context not available"}
+			}
+
+			start, ok := args[0].(*Integer)
+			if !ok {
+				return &Error{Message: fmt.Sprintf("argument to `since` must be INTEGER (timestamp), got %s", args[0].Type())}
+			}
+
+			now := ctx.Now().UnixMilli()
+			return &Integer{Value: now - start.Value}
 		}},
 	},
 }
