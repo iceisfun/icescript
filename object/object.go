@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"strings"
 
 	"math/rand"
@@ -15,6 +16,7 @@ import (
 type BuiltinContext interface {
 	Rand() *rand.Rand
 	Now() time.Time
+	Writer() io.Writer
 }
 
 type ObjectType string

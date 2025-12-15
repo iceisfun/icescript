@@ -34,7 +34,12 @@ var Builtins = []struct {
 			for _, arg := range args {
 				out = append(out, arg.Inspect())
 			}
-			fmt.Println(out...)
+			w := ctx.Writer()
+			if w == nil {
+				fmt.Println(out...)
+			} else {
+				fmt.Fprintln(w, out...)
+			}
 			return NullObj
 		}},
 	},

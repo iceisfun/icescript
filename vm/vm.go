@@ -3,7 +3,9 @@ package vm
 import (
 	"context"
 	"fmt"
+	"io"
 	"math/rand"
+	"os"
 	"time"
 
 	"github.com/iceisfun/icescript/compiler"
@@ -34,7 +36,8 @@ type VM struct {
 	symbolTable *compiler.SymbolTable
 	lastPopped  object.Object
 
-	rng *rand.Rand
+	rng    *rand.Rand
+	output io.Writer
 }
 
 type Frame struct {
@@ -49,6 +52,14 @@ func (vm *VM) Rand() *rand.Rand {
 
 func (vm *VM) Now() time.Time {
 	return time.Now()
+}
+
+func (vm *VM) Writer() io.Writer {
+	return vm.output
+}
+
+func (vm *VM) SetOutput(w io.Writer) {
+	vm.output = w
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
@@ -68,6 +79,7 @@ func New(bytecode *compiler.Bytecode) *VM {
 		framesIndex: 1,
 		symbolTable: bytecode.SymbolTable,
 		rng:         rand.New(rand.NewSource(time.Now().UnixNano())),
+		output:      os.Stdout,
 	}
 }
 

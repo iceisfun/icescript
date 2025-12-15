@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Icescript Editor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Monaco Editor Loader -->
+    <script src="https://unpkg.com/monaco-editor@0.44.0/min/vs/loader.js"></script>
+</head>
+<body>
+    <div class="header">
+        <div class="brand">Icescript Studio</div>
+        <div class="actions">
+            <button id="new-btn">+ New Script</button>
+            <button id="save-btn" class="primary">Save</button>
+            <button id="delete-btn" class="danger">Delete</button>
+            <button id="test-btn">▶ Test</button>
+        </div>
+    </div>
+
+    <div class="sidebar" id="script-list">
+        <!-- Script items will be injected here -->
+    </div>
+
+    <div class="editor-container">
+        <div id="monaco-editor"></div>
+    </div>
+
+    <div class="output-pane" id="output-pane">
+        <div class="output-header">
+            <span>Output / Console</span>
+            <span id="status-indicator">Ready</span>
+        </div>
+        <div id="logs"></div>
+    </div>
+
+    <!-- Modals -->
+    <div id="new-script-dialog" class="dialog-overlay hidden">
+        <div class="dialog-box">
+            <h3>New Script</h3>
+            <input type="text" id="new-script-name" placeholder="Script Name (e.g. hello-world)">
+            <div class="actions" style="justify-content: flex-end;">
+                <button id="cancel-new-btn">Cancel</button>
+                <button id="confirm-new-btn" class="primary">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
