@@ -230,6 +230,16 @@ func (vm *VM) Run(ctx context.Context) error {
 				return err
 			}
 
+		case opcode.OpSlice:
+			end := vm.pop()
+			start := vm.pop()
+			left := vm.pop()
+
+			err := vm.executeSliceExpression(left, start, end)
+			if err != nil {
+				return err
+			}
+
 		case opcode.OpCall:
 			numArgs := opcode.ReadUint8(ins[ip+1:])
 			vm.currentFrame().ip += 1
@@ -531,6 +541,49 @@ func (vm *VM) executeHashIndex(hash, index object.Object) error {
 	}
 
 	return vm.push(pair.Value)
+}
+
+func (vm *VM) executeSliceExpression(left, start, end object.Object) error {
+	if left.Type() != object.ARRAY_OBJ {
+		return fmt.Errorf("slice operator not supported: %s", left.Type())
+	}
+
+	arrayObject := left.(*object.Array)
+	elements := arrayObject.Elements
+	length := int64(len(elements))
+
+	var startIndex int64 = 0
+	var endIndex int64 = length
+
+	if start != Null {
+		if start.Type() != object.INTEGER_OBJ {
+			return fmt.Errorf("slice start index must be INTEGER, got %s", start.Type())
+		}
+		startIndex = start.(*object.Integer).Value
+	}
+
+	if end != Null {
+		if end.Type() != object.INTEGER_OBJ {
+			return fmt.Errorf("slice end index must be INTEGER, got %s", end.Type())
+		}
+		endIndex = end.(*object.Integer).Value
+	}
+
+	// Adjust bounds
+	if startIndex < 0 {
+		startIndex = 0
+	}
+	if endIndex > length {
+		endIndex = length
+	}
+	if startIndex > endIndex {
+		startIndex = endIndex
+	}
+
+	newElements := make([]object.Object, endIndex-startIndex)
+	copy(newElements, elements[startIndex:endIndex])
+
+	return vm.push(&object.Array{Elements: newElements})
 }
 
 func (vm *VM) currentFrame() *Frame {

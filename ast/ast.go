@@ -338,6 +338,33 @@ func (ie *IndexExpression) String() string {
 	return out.String()
 }
 
+type SliceExpression struct {
+	Token token.Token // The [ token
+	Left  Expression
+	Start Expression // Optional (can be nil)
+	End   Expression // Optional (can be nil)
+}
+
+func (se *SliceExpression) expressionNode()      {}
+func (se *SliceExpression) TokenLiteral() string { return se.Token.Literal }
+func (se *SliceExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	out.WriteString(se.Left.String())
+	out.WriteString("[")
+	if se.Start != nil {
+		out.WriteString(se.Start.String())
+	}
+	out.WriteString(":")
+	if se.End != nil {
+		out.WriteString(se.End.String())
+	}
+	out.WriteString("])")
+
+	return out.String()
+}
+
 type MapLiteral struct {
 	Token token.Token // '{'
 	Pairs map[Expression]Expression

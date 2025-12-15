@@ -334,6 +334,32 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		c.emit(opcode.OpIndex)
 
+	case *ast.SliceExpression:
+		err := c.Compile(node.Left)
+		if err != nil {
+			return err
+		}
+
+		if node.Start != nil {
+			err = c.Compile(node.Start)
+			if err != nil {
+				return err
+			}
+		} else {
+			c.emit(opcode.OpNull)
+		}
+
+		if node.End != nil {
+			err = c.Compile(node.End)
+			if err != nil {
+				return err
+			}
+		} else {
+			c.emit(opcode.OpNull)
+		}
+
+		c.emit(opcode.OpSlice)
+
 	case *ast.FunctionLiteral:
 		c.enterScope()
 

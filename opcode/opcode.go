@@ -35,6 +35,7 @@ const (
 	OpArray
 	OpHash
 	OpIndex
+	OpSlice
 
 	OpCall
 	OpReturnValue
@@ -75,6 +76,7 @@ var definitions = map[Opcode]*Definition{
 	OpArray:          {"OpArray", []int{2}}, // Number of elements
 	OpHash:           {"OpHash", []int{2}},  // Number of elements (keys + values)
 	OpIndex:          {"OpIndex", []int{}},
+	OpSlice:          {"OpSlice", []int{}},
 	OpCall:           {"OpCall", []int{1}}, // Number of arguments
 	OpReturnValue:    {"OpReturnValue", []int{}},
 	OpReturn:         {"OpReturn", []int{}},

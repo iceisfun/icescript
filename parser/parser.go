@@ -444,16 +444,54 @@ func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {
 }
 
 func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
-	exp := &ast.IndexExpression{Token: p.curToken, Left: left}
-
+	startToken := p.curToken
 	p.nextToken()
-	exp.Index = p.parseExpression(LOWEST)
+
+	// Check if this is a slice with no start index i.e. [:
+	if p.curTokenIs(token.COLON) {
+		p.nextToken() // move past COLON
+		sliceExp := &ast.SliceExpression{Token: startToken, Left: left}
+
+		// check if there is an end index
+		if p.curTokenIs(token.RBRACKET) {
+			// No end index, we are at ]
+			return sliceExp
+		}
+
+		sliceExp.End = p.parseExpression(LOWEST)
+
+		if !p.expectPeek(token.RBRACKET) {
+			return nil
+		}
+		return sliceExp
+	}
+
+	exp := p.parseExpression(LOWEST)
+
+	if p.peekTokenIs(token.COLON) {
+		p.nextToken() // move to COLON
+		p.nextToken() // move past COLON
+		sliceExp := &ast.SliceExpression{Token: startToken, Left: left, Start: exp}
+
+		if p.curTokenIs(token.RBRACKET) {
+			return sliceExp
+		}
+
+		sliceExp.End = p.parseExpression(LOWEST)
+
+		if !p.expectPeek(token.RBRACKET) {
+			return nil
+		}
+		return sliceExp
+	}
+
+	indexExp := &ast.IndexExpression{Token: startToken, Left: left, Index: exp}
 
 	if !p.expectPeek(token.RBRACKET) {
 		return nil
 	}
 
-	return exp
+	return indexExp
 }
 
 func (p *Parser) parseMapLiteral() ast.Expression {

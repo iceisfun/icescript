@@ -27,6 +27,9 @@ if (5 < 10) {
 [1, 2];
 {"foo": "bar"}
 3.14
+[1:2];
+[:1];
+[2:];
 // single line
 /* multi
 line */
@@ -123,6 +126,22 @@ line */
 		{token.STRING, "bar"},
 		{token.RBRACE, "}"},
 		{token.FLOAT, "3.14"},
+		{token.LBRACKET, "["},
+		{token.INT, "1"},
+		{token.COLON, ":"},
+		{token.INT, "2"},
+		{token.RBRACKET, "]"},
+		{token.SEMICOLON, ";"},
+		{token.LBRACKET, "["},
+		{token.COLON, ":"},
+		{token.INT, "1"},
+		{token.RBRACKET, "]"},
+		{token.SEMICOLON, ";"},
+		{token.LBRACKET, "["},
+		{token.INT, "2"},
+		{token.COLON, ":"},
+		{token.RBRACKET, "]"},
+		{token.SEMICOLON, ";"},
 		{token.EOF, ""},
 	}
 

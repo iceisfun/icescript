@@ -29,6 +29,11 @@ for k < len(allKeys) {
     k = k + 1
 }
 
-// Slices / Sub-arrays (simulated by creating new arrays since we don't have slice syntax yet)
-// We only have index access, no slice operator like arr[1:3].
-// So we just show array construction.
+// Slices
+print("\n--- Slices ---")
+var slice1 = arr[1:3]
+print("Slice [1:3]:", slice1)
+var slice2 = arr[:2]
+print("Slice [:2]:", slice2)
+var slice3 = arr[3:]
+print("Slice [3:]:", slice3) // (arr has 5 elements, so index 3, 4)
