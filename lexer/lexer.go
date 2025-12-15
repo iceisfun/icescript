@@ -236,12 +236,36 @@ func newToken(tokenType token.TokenType, ch byte) token.Token {
 }
 
 func (l *Lexer) readString() string {
-	position := l.position + 1
+	var out []byte
 	for {
 		l.readChar()
 		if l.ch == '"' || l.ch == 0 {
 			break
 		}
+
+		if l.ch == '\\' {
+			switch l.peekChar() {
+			case 'n':
+				l.readChar()
+				out = append(out, '\n')
+			case 't':
+				l.readChar()
+				out = append(out, '\t')
+			case 'r':
+				l.readChar()
+				out = append(out, '\r')
+			case '"':
+				l.readChar()
+				out = append(out, '"')
+			case '\\':
+				l.readChar()
+				out = append(out, '\\')
+			default:
+				out = append(out, '\\')
+			}
+		} else {
+			out = append(out, l.ch)
+		}
 	}
-	return l.input[position:l.position]
+	return string(out)
 }

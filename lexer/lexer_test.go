@@ -142,3 +142,41 @@ line */
 		}
 	}
 }
+
+func TestStringEscapeSequences(t *testing.T) {
+	input := `
+"newline\n"
+"tab\t"
+"quote\""
+"backslash\\"
+"mixed\n\t\"\\"
+`
+
+	tests := []struct {
+		expectedType    token.TokenType
+		expectedLiteral string
+	}{
+		{token.STRING, "newline\n"},
+		{token.STRING, "tab\t"},
+		{token.STRING, "quote\""},
+		{token.STRING, "backslash\\"},
+		{token.STRING, "mixed\n\t\"\\"},
+		{token.EOF, ""},
+	}
+
+	l := New(input)
+
+	for i, tt := range tests {
+		tok := l.NextToken()
+
+		if tok.Type != tt.expectedType {
+			t.Fatalf("tests[%d] - token type wrong. expected=%q, got=%q",
+				i, tt.expectedType, tok.Type)
+		}
+
+		if tok.Literal != tt.expectedLiteral {
+			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q",
+				i, tt.expectedLiteral, tok.Literal)
+		}
+	}
+}
