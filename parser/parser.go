@@ -132,6 +132,13 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseReturnStatement()
 	case token.FOR:
 		return p.parseForStatement() // Placeholder for loop parsing
+	case token.FUNCTION:
+		// Check for function declaration: func name() {}
+		if p.peekTokenIs(token.IDENT) {
+			return p.parseFunctionDeclaration()
+		}
+		// Otherwise, it's a function literal expression statement
+		return p.parseExpressionStatement()
 	default:
 		return p.parseExpressionStatement()
 	}
@@ -615,6 +622,34 @@ func (p *Parser) parseForStatement() ast.Statement {
 	}
 
 	stmt.Body = p.parseBlockStatement()
+
+	return stmt
+}
+
+func (p *Parser) parseFunctionDeclaration() ast.Statement {
+	// Syntactic sugar: func name(...) { ... }  => var name = func(...) { ... }
+	stmt := &ast.LetStatement{Token: token.Token{Type: token.VAR, Literal: "var"}}
+
+	p.nextToken() // consume FUNC
+
+	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	// Function literal part
+	lit := &ast.FunctionLiteral{Token: token.Token{Type: token.FUNCTION, Literal: "func"}}
+
+	if !p.expectPeek(token.LPAREN) {
+		return nil
+	}
+
+	lit.Parameters = p.parseFunctionParameters()
+
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+
+	lit.Body = p.parseBlockStatement()
+
+	stmt.Value = lit
 
 	return stmt
 }
