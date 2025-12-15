@@ -20,7 +20,9 @@ const (
 	STRING = "STRING"
 
 	// Operators
-	ASSIGN   = "="
+	ASSIGN         = "="
+	ASSIGN_DECLARE = ":="
+
 	PLUS     = "+"
 	MINUS    = "-"
 	BANG     = "!"

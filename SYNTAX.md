@@ -10,10 +10,10 @@ This document describes the syntax of the `icescript` language.
 ```
 
 ## Variables
-Variables are dynamically typed but declared with `var`. Constants with `const`.
+Variables are dynamically typed but declared with `var` or short declaration syntax `:=`. Constants with `const`.
 ```go
 var name = "icescript"
-var age = 1
+age := 1
 const VERSION = "2.0"
 ```
 
@@ -109,7 +109,8 @@ if x > 0 {
 ### For Loops
 ```go
 // C-style
-for var i = 0; i < 5; i = i + 1 {
+// C-style
+for i := 0; i < 5; i = i + 1 {
     print(i)
 }
 

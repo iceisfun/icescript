@@ -311,6 +311,20 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(opcode.OpSetLocal, symbol.Index)
 		}
 
+	case *ast.ShortVarDeclaration:
+		c.lastLine = node.Token.Line
+		symbol := c.symbolTable.Define(node.Name.Value)
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+
+		if symbol.Scope == GlobalScope {
+			c.emit(opcode.OpSetGlobal, symbol.Index)
+		} else {
+			c.emit(opcode.OpSetLocal, symbol.Index)
+		}
+
 	case *ast.AssignExpression:
 		c.lastLine = node.Token.Line
 		symbol, ok := c.symbolTable.Resolve(node.Name.Value)

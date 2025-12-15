@@ -147,6 +147,9 @@ func (p *Parser) parseStatement() ast.Statement {
 		// Otherwise, it's a function literal expression statement
 		return p.parseExpressionStatement()
 	default:
+		if p.curTokenIs(token.IDENT) && p.peekTokenIs(token.ASSIGN_DECLARE) {
+			return p.parseShortVarDeclaration()
+		}
 		return p.parseExpressionStatement()
 	}
 }
@@ -165,6 +168,23 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	}
 
 	p.nextToken()
+
+	stmt.Value = p.parseExpression(LOWEST)
+
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseShortVarDeclaration() *ast.ShortVarDeclaration {
+	stmt := &ast.ShortVarDeclaration{Name: &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}}
+
+	p.nextToken()           // consume IDENT
+	stmt.Token = p.curToken // :=
+
+	p.nextToken() // consume :=
 
 	stmt.Value = p.parseExpression(LOWEST)
 
@@ -578,7 +598,29 @@ func (p *Parser) parseForStatement() ast.Statement {
 		if !p.expectPeek(token.LBRACE) {
 			return nil
 		}
+	} else if p.curTokenIs(token.IDENT) && p.peekTokenIs(token.ASSIGN_DECLARE) {
+		// usage: for i := 0; i < 10; i = i + 1 { ... }
+		stmt.Init = p.parseShortVarDeclaration()
+
+		if p.curTokenIs(token.SEMICOLON) {
+			p.nextToken()
+		}
+
+		stmt.Condition = p.parseExpression(LOWEST)
+
+		if !p.expectPeek(token.SEMICOLON) {
+			return nil
+		}
+		p.nextToken()
+
+		postExp := p.parseExpression(LOWEST)
+		stmt.Post = &ast.ExpressionStatement{Expression: postExp}
+
+		if !p.expectPeek(token.LBRACE) {
+			return nil
+		}
 	} else {
+
 		// Could be init (expr) or condition
 		// We parse an expression.
 		expr := p.parseExpression(LOWEST)

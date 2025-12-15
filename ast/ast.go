@@ -67,6 +67,27 @@ func (ls *LetStatement) String() string {
 	return out.String()
 }
 
+type ShortVarDeclaration struct {
+	Token token.Token // the := token
+	Name  *Identifier
+	Value Expression
+}
+
+func (sv *ShortVarDeclaration) statementNode()       {}
+func (sv *ShortVarDeclaration) TokenLiteral() string { return sv.Token.Literal }
+func (sv *ShortVarDeclaration) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(sv.Name.String())
+	out.WriteString(" := ")
+
+	if sv.Value != nil {
+		out.WriteString(sv.Value.String())
+	}
+
+	return out.String()
+}
+
 type ReturnStatement struct {
 	Token       token.Token // the 'return' token
 	ReturnValue Expression
