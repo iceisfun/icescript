@@ -243,7 +243,10 @@ func (vm *VM) Run(ctx context.Context) error {
 					return fmt.Errorf("wrong number of arguments: want=%d, got=%d", callee.Fn.NumParameters, numArgs)
 				}
 				frame := NewFrame(callee, vm.sp-int(numArgs))
-				vm.pushFrame(frame)
+				err := vm.pushFrame(frame)
+				if err != nil {
+					return err
+				}
 				vm.sp = frame.basePointer + callee.Fn.NumLocals // Reserve space? Or stack grows dynamically?
 				// Stack grows on push. But local vars slots need to be logically mapped.
 				// With OpSetLocal we assign to vm.stack[base + index].
@@ -517,9 +520,13 @@ func (vm *VM) currentFrame() *Frame {
 	return vm.frames[vm.framesIndex-1]
 }
 
-func (vm *VM) pushFrame(f *Frame) {
+func (vm *VM) pushFrame(f *Frame) error {
+	if vm.framesIndex >= MaxFrames {
+		return fmt.Errorf("stack overflow")
+	}
 	vm.frames[vm.framesIndex] = f
 	vm.framesIndex++
+	return nil
 }
 
 func (vm *VM) popFrame() *Frame {
