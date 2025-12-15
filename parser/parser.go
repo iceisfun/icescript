@@ -527,14 +527,90 @@ func (p *Parser) parseMapLiteral() ast.Expression {
 // Simple C-style support for now: for init; cond; post { body }
 func (p *Parser) parseForStatement() ast.Statement {
 	stmt := &ast.ForStatement{Token: p.curToken}
+	p.nextToken() // Consume FOR
 
-	p.nextToken()
+	// Infinite loop: for { ... }
+	if p.curTokenIs(token.LBRACE) {
+		stmt.Body = p.parseBlockStatement()
+		return stmt
+	}
 
-	if !p.curTokenIs(token.LBRACE) {
+	// Helper to check if we are looking at a C-style loop
+	// If we just see an expression, it might be the condition (for x < 10)
+	// or the init (for x = 0; ...)
+
+	if p.curTokenIs(token.VAR) {
+		// usage: for var i = 0; i < 10; i = i + 1 { ... }
+		stmt.Init = p.parseLetStatement()
+		// parseLetStatement might consume the semicolon if present.
+		// If it did, curToken is SEMICOLON.
+		if p.curTokenIs(token.SEMICOLON) {
+			p.nextToken() // move past ;
+		}
+		// now parse condition
 		stmt.Condition = p.parseExpression(LOWEST)
+
+		if !p.expectPeek(token.SEMICOLON) {
+			return nil
+		}
+		p.nextToken() // move past ; (expectPeek moves to it, nextToken moves past it?)
+		// expectPeek: if peek is ;, nextToken() (cur becomes ;), return true.
+		// So curToken is ;. We need one more nextToken to move to start of post.
+
+		// Parse Post
+		postExp := p.parseExpression(LOWEST)
+		stmt.Post = &ast.ExpressionStatement{Expression: postExp}
 
 		if !p.expectPeek(token.LBRACE) {
 			return nil
+		}
+	} else {
+		// Could be init (expr) or condition
+		// We parse an expression.
+		expr := p.parseExpression(LOWEST)
+
+		if p.peekTokenIs(token.SEMICOLON) {
+			// It was init
+			p.nextToken() // curToken becomes ;
+			p.nextToken() // curToken becomes start of condition
+
+			stmt.Init = &ast.ExpressionStatement{Expression: expr, Token: token.Token{Literal: expr.TokenLiteral(), Type: token.IDENT}} // Type is guess, mostly purely for string repr
+			// Note: AST ExpressionStatement Token field is problematic here since we don't have the original start token handy easily if we didn't save it.
+			// But creating a wrapper is fine.
+
+			// Parse Condition
+			if !p.curTokenIs(token.SEMICOLON) {
+				stmt.Condition = p.parseExpression(LOWEST)
+			}
+
+			if !p.expectPeek(token.SEMICOLON) {
+				return nil
+			}
+			p.nextToken() // move past ;
+
+			// Parse Post
+			if !p.curTokenIs(token.LBRACE) {
+				postExp := p.parseExpression(LOWEST)
+				stmt.Post = &ast.ExpressionStatement{Expression: postExp}
+			}
+
+			if !p.expectPeek(token.LBRACE) {
+				// The post expression parsing loop might have stopped at LBRACE
+				// parseExpression loop checks peek.
+				// If peek is not semicolon... wait
+				// parseExpression precedence check loop stops if peek is token with lower precedence?
+				// token.LBRACE precedence? It's not in map -> LOWEST.
+				// So parseExpression stops before {.
+				if !p.expectPeek(token.LBRACE) {
+					return nil
+				}
+			}
+		} else {
+			// It was condition
+			stmt.Condition = expr
+			if !p.expectPeek(token.LBRACE) {
+				return nil
+			}
 		}
 	}
 

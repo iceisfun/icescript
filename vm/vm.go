@@ -29,6 +29,9 @@ type VM struct {
 	// Call frames
 	frames      []*Frame
 	framesIndex int
+
+	symbolTable *compiler.SymbolTable
+	lastPopped  object.Object
 }
 
 type Frame struct {
@@ -52,6 +55,7 @@ func New(bytecode *compiler.Bytecode) *VM {
 		sp:          0,
 		frames:      frames,
 		framesIndex: 1,
+		symbolTable: bytecode.SymbolTable,
 	}
 }
 
@@ -67,6 +71,75 @@ func NewFrame(cl *object.Closure, basePointer int) *Frame {
 
 func (vm *VM) Instructions() []byte {
 	return vm.currentFrame().cl.Fn.Instructions
+}
+
+// Invoke calls the given function/closure with arguments.
+// It is cancellable via ctx.
+func (vm *VM) Invoke(ctx context.Context, fn object.Object, args ...object.Object) (object.Object, error) {
+	// 1. Validate function type
+	closure, ok := fn.(*object.Closure)
+	if !ok {
+		return nil, fmt.Errorf("Invoke expected a function/closure, got %s", fn.Type())
+	}
+
+	// 2. Validate Arity
+	if len(args) != closure.Fn.NumParameters {
+		return nil, fmt.Errorf("wrong number of arguments: want=%d, got=%d", closure.Fn.NumParameters, len(args))
+	}
+
+	// 3. Prepare Stack
+	vm.sp = 0
+
+	// 4. Push Closure & Args
+	err := vm.push(closure)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, arg := range args {
+		err := vm.push(arg)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// 5. Setup Frame
+	// In OpCall, basePointer points to the first argument.
+	// vm.sp currently points after the last argument.
+	// So basePointer should be vm.sp - len(args).
+	basePointer := vm.sp - len(args)
+	frame := NewFrame(closure, basePointer)
+	vm.frames[0] = frame
+	vm.framesIndex = 1
+
+	// Set SP to reserve space for locals
+	vm.sp = frame.basePointer + closure.Fn.NumLocals
+
+	// 6. Run
+	err = vm.Run(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 7. Get Return Value
+	return vm.lastPopped, nil
+}
+
+func (vm *VM) GetGlobal(name string) (object.Object, error) {
+	if vm.symbolTable == nil {
+		return nil, fmt.Errorf("no symbol table available")
+	}
+
+	symbol, ok := vm.symbolTable.Resolve(name)
+	if !ok {
+		return nil, fmt.Errorf("undefined global: %s", name)
+	}
+
+	if symbol.Scope == compiler.GlobalScope {
+		return vm.globals[symbol.Index], nil
+	}
+
+	return nil, fmt.Errorf("%s is not a global (scope: %s)", name, symbol.Scope)
 }
 
 func (vm *VM) Run(ctx context.Context) error {
@@ -108,7 +181,7 @@ func (vm *VM) Run(ctx context.Context) error {
 		case opcode.OpPop:
 			vm.pop()
 
-		case opcode.OpAdd, opcode.OpSub, opcode.OpMul, opcode.OpDiv:
+		case opcode.OpAdd, opcode.OpSub, opcode.OpMul, opcode.OpDiv, opcode.OpMod:
 			err := vm.executeBinaryOperation(op)
 			if err != nil {
 				return err
@@ -258,16 +331,6 @@ func (vm *VM) Run(ctx context.Context) error {
 					return err
 				}
 				vm.sp = frame.basePointer + callee.Fn.NumLocals // Reserve space? Or stack grows dynamically?
-				// Stack grows on push. But local vars slots need to be logically mapped.
-				// With OpSetLocal we assign to vm.stack[base + index].
-				// If index > numArgs, we need to ensure stack is large enough?
-				// The VM implementation usually assumes "locals" are reserved or we just index into stack which is pre-allocated.
-				// But we need to make sure sp is moved past the locals.
-				// In this book-based design, locals include params.
-				// So if we have 2 params and 3 vars, sp should point to base + 5?
-				// OpSetLocal writes to index. OpGetLocal reads.
-				// If we declare a local, we usually emit code to put nil or the value on the stack via logic (e.g. VarStatement emits code).
-				// So standard stack machine behavior is fine. The SP grows as we push locals.
 
 			case *object.Builtin:
 				args := vm.stack[vm.sp-int(numArgs) : vm.sp] // Get args slice
@@ -285,6 +348,7 @@ func (vm *VM) Run(ctx context.Context) error {
 
 		case opcode.OpReturnValue:
 			returnValue := vm.pop()
+			vm.lastPopped = returnValue
 
 			if vm.framesIndex == 1 {
 				// Returning from main frame
@@ -301,6 +365,7 @@ func (vm *VM) Run(ctx context.Context) error {
 			}
 
 		case opcode.OpReturn:
+			vm.lastPopped = Null
 			if vm.framesIndex == 1 {
 				vm.popFrame()
 				return nil
@@ -409,6 +474,8 @@ func (vm *VM) executeBinaryIntegerOperation(
 		return vm.push(&object.Integer{Value: leftVal * rightVal})
 	case opcode.OpDiv:
 		return vm.push(&object.Integer{Value: leftVal / rightVal})
+	case opcode.OpMod:
+		return vm.push(&object.Integer{Value: leftVal % rightVal})
 	default:
 		return fmt.Errorf("unknown integer operator: %d", op)
 	}
@@ -647,11 +714,4 @@ func (vm *VM) SetGlobal(index int, val object.Object) error {
 	}
 	vm.globals[index] = val
 	return nil
-}
-
-func (vm *VM) GetGlobal(index int) (object.Object, error) {
-	if index >= len(vm.globals) {
-		return nil, fmt.Errorf("global index %d out of bounds", index)
-	}
-	return vm.globals[index], nil
 }

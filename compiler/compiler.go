@@ -145,6 +145,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(opcode.OpMul)
 		case "/":
 			c.emit(opcode.OpDiv)
+		case "%":
+			c.emit(opcode.OpMod)
 		case ">":
 			c.emit(opcode.OpGreaterThan)
 		case "==":
@@ -424,6 +426,14 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(opcode.OpCall, len(node.Arguments))
 
 	case *ast.ForStatement:
+		// Init
+		if node.Init != nil {
+			err := c.Compile(node.Init)
+			if err != nil {
+				return err
+			}
+		}
+
 		startPos := len(c.currentInstructions())
 
 		var jumpNotTruthyPos int
@@ -442,6 +452,14 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 
+		// Post (run after body, before jumping back)
+		if node.Post != nil {
+			err := c.Compile(node.Post)
+			if err != nil {
+				return err
+			}
+		}
+
 		c.emit(opcode.OpJump, startPos)
 
 		if node.Condition != nil {
@@ -457,6 +475,7 @@ func (c *Compiler) Bytecode() *Bytecode {
 	return &Bytecode{
 		Instructions: c.currentInstructions(),
 		Constants:    c.constants,
+		SymbolTable:  c.symbolTable,
 	}
 }
 
@@ -467,6 +486,7 @@ func (c *Compiler) SymbolTable() *SymbolTable {
 type Bytecode struct {
 	Instructions []byte
 	Constants    []object.Object
+	SymbolTable  *SymbolTable
 }
 
 func (c *Compiler) addConstant(obj object.Object) int {
