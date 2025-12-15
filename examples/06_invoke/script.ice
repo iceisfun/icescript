@@ -14,9 +14,8 @@ var add = func(a, b) {
 }
 
 var slow = func() {
-    var i = 0
     var v = 0
-    for i = 1; i < 10000000; i = i + 1 {
+    for var i = 1; i < 10000000; i = i + 1 {
         v = add(i, i%1000)
         print(".")
     }
