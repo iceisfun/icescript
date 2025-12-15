@@ -193,6 +193,12 @@ func (vm *VM) Run(ctx context.Context) error {
 		case opcode.OpPop:
 			vm.pop()
 
+		case opcode.OpDup:
+			err := vm.push(vm.StackTop())
+			if err != nil {
+				return vm.newRuntimeError("%s", err.Error())
+			}
+
 		case opcode.OpAdd, opcode.OpSub, opcode.OpMul, opcode.OpDiv, opcode.OpMod:
 			err := vm.executeBinaryOperation(op)
 			if err != nil {

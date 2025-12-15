@@ -125,6 +125,65 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return nil
 		}
 
+		if node.Operator == "&&" {
+			err := c.Compile(node.Left)
+			if err != nil {
+				return err
+			}
+
+			// Stack: [left]
+			c.emit(opcode.OpDup)
+			// Stack: [left, left]
+			jumpPos := c.emit(opcode.OpJumpNotTruthy, 9999)
+
+			// Stack if true: [left] (we need to pop it before right)
+			c.emit(opcode.OpPop)
+			// Stack: []
+
+			err = c.Compile(node.Right)
+			if err != nil {
+				return err
+			}
+
+			afterRightPos := len(c.currentInstructions())
+			c.changeOperand(jumpPos, afterRightPos)
+
+			return nil
+		}
+
+		if node.Operator == "||" {
+			err := c.Compile(node.Left)
+			if err != nil {
+				return err
+			}
+
+			// Stack: [left]
+			c.emit(opcode.OpDup)
+			// Stack: [left, left]
+			jumpNotTruthyPos := c.emit(opcode.OpJumpNotTruthy, 9999)
+
+			// Left was truthy, so Short-circuit!
+			// Stack: [left]
+			jumpToEndPos := c.emit(opcode.OpJump, 9999)
+
+			// EvalRight: Left was falsy
+			afterLeftPos := len(c.currentInstructions())
+			c.changeOperand(jumpNotTruthyPos, afterLeftPos)
+
+			// Stack: [left] -> Pop it
+			c.emit(opcode.OpPop)
+
+			err = c.Compile(node.Right)
+			if err != nil {
+				return err
+			}
+
+			afterRightPos := len(c.currentInstructions())
+			c.changeOperand(jumpToEndPos, afterRightPos)
+
+			return nil
+		}
+
 		err := c.Compile(node.Left)
 		if err != nil {
 			return err

@@ -257,7 +257,6 @@ risky()  // Runtime error with stack trace showing call chain
 The following features are NOT currently implemented:
 
 **Operators:**
-- `&&` and `||` (logical AND/OR) - use nested `if` statements
 - `++` and `--` (increment/decrement) - use `i = i + 1`
 - `+=`, `-=` etc. (compound assignment)
 - `else if` - use `else { if ... }`
@@ -275,5 +274,4 @@ The following features are NOT currently implemented:
 - `break` and `continue` in loops
 - `for k, v := range collection` syntax
 - Dot notation for hash access (`hash.key`) - use `hash["key"]`
-
 - Mutable closure captures (closures are read-only)

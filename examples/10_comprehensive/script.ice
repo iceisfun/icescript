@@ -50,7 +50,7 @@ assert(2.5 < 3.0, "float less than")
 assert(3.0 == 3.0, "float equal")
 
 // ========================================
-// Logical Operators (using !)
+// Logical Operators
 // ========================================
 print("--- Logical Tests ---")
 
@@ -58,34 +58,17 @@ assert(!false, "not false")
 assert(!!true, "double not true")
 assert(!(!true), "not not true")
 
-// Simulating AND with nested if
-func testAnd(a, b) {
-    if a {
-        if b {
-            return true
-        }
-    }
-    return false
-}
-assert(testAnd(true, true), "simulated and both true")
-assert(!testAnd(true, false), "simulated and one false")
-assert(!testAnd(false, true), "simulated and first false")
-assert(!testAnd(false, false), "simulated and both false")
+// AND operator
+assert(true && true, "and both true")
+assert(!(true && false), "and one false")
+assert(!(false && true), "and first false")
+assert(!(false && false), "and both false")
 
-// Simulating OR with nested if
-func testOr(a, b) {
-    if a {
-        return true
-    }
-    if b {
-        return true
-    }
-    return false
-}
-assert(testOr(true, false), "simulated or first true")
-assert(testOr(false, true), "simulated or second true")
-assert(testOr(true, true), "simulated or both true")
-assert(!testOr(false, false), "simulated or both false")
+// OR operator
+assert(true || false, "or first true")
+assert(false || true, "or second true")
+assert(true || true, "or both true")
+assert(!(false || false), "or both false")
 
 // ========================================
 // String Operations
@@ -100,7 +83,11 @@ assert(equalFold("Hello", "hello"), "equalFold same")
 assert(equalFold("WORLD", "world"), "equalFold caps")
 assert(!equalFold("hello", "bye"), "equalFold different")
 
-// Note: String equality, indexing, slicing, and concatenation are NOT supported
+// String equality
+assert("hello" == "hello", "string equality same")
+assert(!("hello" == "world"), "string equality different")
+var strVar = "test"
+assert(strVar == "test", "string var equality")
 
 // ========================================
 // Array Operations
@@ -119,10 +106,12 @@ assert(arr[5] == 6, "push adds element")
 assert(contains(arr, 3), "array contains true")
 assert(!contains(arr, 99), "array contains false")
 
-// Mixed type array (note: null in arrays doesn't work)
-var mixed = [1, 2, 3, true]
-assert(len(mixed) == 4, "mixed array length")
+// Mixed type array
+var mixed = [1, "two", 3.0, true, null]
+assert(len(mixed) == 5, "mixed array length")
+assert(mixed[1] == "two", "mixed array string")
 assert(mixed[3] == true, "mixed array bool")
+assert(mixed[4] == null, "mixed array null")
 
 // Empty array
 var empty = []
@@ -342,7 +331,10 @@ assert(true == true, "true equals true")
 assert(false == false, "false equals false")
 assert(true != false, "true not equal false")
 
-// Note: null comparisons crash the VM, so skipped
+// Null handling
+assert(null == null, "null equals null")
+var nullVar = null
+assert(nullVar == null, "null variable")
 
 // Empty collections
 assert(len([]) == 0, "empty array len")
