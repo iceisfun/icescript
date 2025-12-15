@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/iceisfun/icescript/compiler"
@@ -14,9 +15,14 @@ import (
 
 func main() {
 	// 1. Load and compile script
-	input, err := os.ReadFile("examples/06_invoke/script.ice")
+	if len(os.Args) < 2 {
+		log.Fatal("Usage: go run main.go <script.ice>")
+	}
+	filename := os.Args[1]
+
+	input, err := os.ReadFile(filename)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	l := lexer.New(string(input))

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/iceisfun/icescript/compiler"
 	"github.com/iceisfun/icescript/lexer"
@@ -13,15 +14,16 @@ import (
 )
 
 func main() {
-	input := `
-	// "Config" and "Callback" are NOT declared here with var.
-	// They are injected by the host.
+	if len(os.Args) < 2 {
+		log.Fatal("Usage: go run main.go <script.ice>")
+	}
+	filename := os.Args[1]
 
-	print("Config is:", Config)
-	
-	var result = Callback(1, 2)
-	print("Callback returned:", result)
-	`
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	input := string(data)
 
 	// 1. Setup Compiler
 	c := compiler.New()
@@ -40,7 +42,7 @@ func main() {
 		log.Fatalf("Parse errors: %v", p.Errors())
 	}
 
-	err := c.Compile(program)
+	err = c.Compile(program)
 	if err != nil {
 		log.Fatalf("Compiler error: %s", err)
 	}

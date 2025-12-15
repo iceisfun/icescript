@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -43,7 +44,7 @@ func main() {
 	}
 
 	machine := vm.New(c.Bytecode())
-	err = machine.Run(nil)
+	err = machine.Run(context.Background())
 	if err != nil {
 		fmt.Printf("VM execution failed:\n%s\n", err)
 		// We expect failure here, so exit 0 if it's the expected panic

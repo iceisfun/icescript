@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/iceisfun/icescript/compiler"
@@ -13,18 +14,16 @@ import (
 )
 
 func main() {
-	input := `
-func makeAdder(x) {
-    return func(y) {
-        return x + y
-    }
-}
+	if len(os.Args) < 2 {
+		log.Fatal("Usage: go run main.go <script.ice>")
+	}
+	filename := os.Args[1]
 
-var add1 = makeAdder(1)
-var add2 = makeAdder(2)
-
-print(add2(add1(add2(add1(10)))))
-	`
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	input := string(data)
 
 	// 1. Lexing
 	l := lexer.New(input)
@@ -38,7 +37,7 @@ print(add2(add1(add2(add1(10)))))
 
 	// 3. Compiling
 	c := compiler.New()
-	err := c.Compile(program)
+	err = c.Compile(program)
 	if err != nil {
 		log.Fatalf("Compiler error: %s", err)
 	}

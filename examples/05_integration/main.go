@@ -14,30 +14,16 @@ import (
 )
 
 func main() {
-	// 1. Script that anticipates 'config' and 'version' globals
-	input := `
-print("--- Script Start ---")
-print("Received Version:", version)
-print("Received Config:", config)
-
-// Logic: Use config, update version
-var newVersion = version + 1
-print("Updating version to:", newVersion)
-version = newVersion
-
-// Update config
-// Since we don't have map mutation (m[k]=v) yet, we replace the map
-var newConfig = {"env": config["env"], "status": "processed"}
-config = newConfig
-
-print("--- Script End ---")
-`
-	if len(os.Args) > 1 {
-		data, err := os.ReadFile(os.Args[1])
-		if err == nil {
-			input = string(data)
-		}
+	if len(os.Args) < 2 {
+		log.Fatal("Usage: go run main.go <script.ice>")
 	}
+	filename := os.Args[1]
+
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	input := string(data)
 
 	// 2. Setup SymbolTable
 	// We must define builtins because custom symbol table starts empty
@@ -62,7 +48,7 @@ print("--- Script End ---")
 	// NewWithState accepts just constants if we want, or symbol table
 	// compiler.NewWithState(symbolTable, constants)
 	c := compiler.NewWithState(symbolTable, []object.Object{})
-	err := c.Compile(program)
+	err = c.Compile(program)
 	if err != nil {
 		log.Fatalf("Compiler error: %s", err)
 	}
