@@ -52,6 +52,25 @@ var Builtins = []struct {
 			return arr
 		}},
 	},
+	{
+		"keys",
+		&Builtin{Fn: func(args ...Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+			}
+
+			hash, ok := args[0].(*Hash)
+			if !ok {
+				return &Error{Message: fmt.Sprintf("argument to `keys` must be HASH, got %s", args[0].Type())}
+			}
+
+			elements := []Object{}
+			for _, pair := range hash.Pairs {
+				elements = append(elements, pair.Key)
+			}
+			return &Array{Elements: elements}
+		}},
+	},
 }
 
 var NullObj = &Null{}

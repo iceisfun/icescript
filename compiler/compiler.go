@@ -246,8 +246,30 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(opcode.OpSetLocal, symbol.Index)
 		}
 
+	case *ast.AssignExpression:
+		symbol, ok := c.symbolTable.Resolve(node.Name.Value)
+		if !ok {
+			return fmt.Errorf("variable %s not defined", node.Name.Value)
+		}
+
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+
+		if symbol.Scope == GlobalScope {
+			c.emit(opcode.OpSetGlobal, symbol.Index)
+			c.emit(opcode.OpGetGlobal, symbol.Index)
+		} else if symbol.Scope == LocalScope {
+			c.emit(opcode.OpSetLocal, symbol.Index)
+			c.emit(opcode.OpGetLocal, symbol.Index)
+		} else {
+			return fmt.Errorf("assignment to %s not supported", symbol.Scope)
+		}
+
 	case *ast.Identifier:
 		symbol, ok := c.symbolTable.Resolve(node.Value)
+
 		if !ok {
 			return fmt.Errorf("undefined variable %s", node.Value)
 		}
@@ -378,15 +400,15 @@ func (c *Compiler) Compile(node ast.Node) error {
 	case *ast.ForStatement:
 		startPos := len(c.currentInstructions())
 
+		var jumpNotTruthyPos int
+
 		if node.Condition != nil {
 			err := c.Compile(node.Condition)
 			if err != nil {
 				return err
 			}
 			// jumpNotTruthy to end
-			// We need to backpatch "end".
-			// But for now, we only support infinite loops (Condition == nil)
-			return fmt.Errorf("compile error: for loop condition not implemented yet")
+			jumpNotTruthyPos = c.emit(opcode.OpJumpNotTruthy, 9999)
 		}
 
 		err := c.Compile(node.Body)
@@ -395,6 +417,11 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 		c.emit(opcode.OpJump, startPos)
+
+		if node.Condition != nil {
+			afterBodyPos := len(c.currentInstructions())
+			c.changeOperand(jumpNotTruthyPos, afterBodyPos)
+		}
 	}
 
 	return nil

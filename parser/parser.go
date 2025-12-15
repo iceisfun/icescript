@@ -12,6 +12,7 @@ import (
 const (
 	_ int = iota
 	LOWEST
+	ASSIGN      // =
 	EQUALS      // ==
 	LESSGREATER // > or <
 	SUM         // +
@@ -35,6 +36,7 @@ var precedences = map[token.TokenType]int{
 	token.MOD:      PRODUCT,
 	token.LPAREN:   CALL,
 	token.LBRACKET: INDEX,
+	token.ASSIGN:   ASSIGN,
 }
 
 type (
@@ -89,6 +91,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.GTE, p.parseInfixExpression)
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
 	p.registerInfix(token.LBRACKET, p.parseIndexExpression)
+	p.registerInfix(token.ASSIGN, p.parseAssignExpression)
 
 	// Read two tokens, so curToken and peekToken are both set
 	p.nextToken()
@@ -487,14 +490,15 @@ func (p *Parser) parseMapLiteral() ast.Expression {
 func (p *Parser) parseForStatement() ast.Statement {
 	stmt := &ast.ForStatement{Token: p.curToken}
 
-	// For now, only support `for { ... }` (infinite loop)
-	if !p.peekTokenIs(token.LBRACE) {
-		// todo: support conditions
-		return nil
-	}
+	p.nextToken()
 
-	p.nextToken() // skip FOR
-	// now curToken is {
+	if !p.curTokenIs(token.LBRACE) {
+		stmt.Condition = p.parseExpression(LOWEST)
+
+		if !p.expectPeek(token.LBRACE) {
+			return nil
+		}
+	}
 
 	stmt.Body = p.parseBlockStatement()
 
@@ -548,4 +552,20 @@ func (p *Parser) curPrecedence() int {
 		return p
 	}
 	return LOWEST
+}
+
+func (p *Parser) parseAssignExpression(left ast.Expression) ast.Expression {
+	stmt := &ast.AssignExpression{Token: p.curToken}
+
+	if n, ok := left.(*ast.Identifier); ok {
+		stmt.Name = n
+	} else {
+		p.errors = append(p.errors, fmt.Sprintf("expected identifier on left side of assignment, got %T", left))
+		return nil
+	}
+
+	p.nextToken()
+	stmt.Value = p.parseExpression(LOWEST)
+
+	return stmt
 }
