@@ -1,14 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/iceisfun/icescript/compiler" // Imported again? No, duplicate. Go will complain.
 	"github.com/iceisfun/icescript/lexer"
+	"github.com/iceisfun/icescript/object"
 	"github.com/iceisfun/icescript/parser"
 	"github.com/iceisfun/icescript/vm"
 )
@@ -35,56 +38,75 @@ func startREPL() {
 	fmt.Println("icescript v2 REPL")
 	fmt.Println("Type 'exit' to quit.")
 
-	// Simple REPL (just stdin reader)
-	// For better experience, we'd use bufio or a readline lib.
-	// But minimal implementation:
-	var input string
+	scanner := bufio.NewScanner(os.Stdin)
+
+	constants := []object.Object{}
+	globals := make([]object.Object, vm.GlobalSize)
+	symbolTable := compiler.NewSymbolTable()
+
+	var accumulatedInput strings.Builder
+	var openBraces int
+
 	for {
-		fmt.Print(">> ")
-		_, err := fmt.Scanln(&input) // Scanln breaks on spaces! Use bufio.
-		if err != nil {
-			if err == io.EOF {
-				return
-			}
-			// fmt.Println(err) // Scanln issues
+		if openBraces > 0 {
+			fmt.Print("... ")
+		} else {
+			fmt.Print(">> ")
 		}
-		// Fallback to bufio
-		// Re-implementing correctly below.
-		break
-	}
 
-	// Re-do with correct input reading
-	runREPL()
-}
-
-func runREPL() {
-	// Re-implemented correctly
-	buffer := make([]byte, 1024)
-	for {
-		fmt.Print(">> ")
-		n, err := os.Stdin.Read(buffer)
-		if err != nil {
-			if err == io.EOF {
-				return
-			}
-			fmt.Println("error:", err)
+		if !scanner.Scan() {
 			return
 		}
 
-		line := string(buffer[:n])
-		if line == "exit\n" {
+		line := scanner.Text()
+		if line == "exit" {
 			return
 		}
 
-		// Compile and Run
-		// Maintain global state?
-		// For now simple each-line-is-fresh VM (no persistent globals in REPL for this basic version unless we pass symbol table)
-		// To support persistent REPL, we need to keep compiler and machine state.
+		accumulatedInput.WriteString(line)
+		accumulatedInput.WriteString("\n")
 
-		// Let's do persistent constants and globals.
-		// compiler := compiler.New() // New each time? No.
+		openBraces += strings.Count(line, "{") - strings.Count(line, "}")
 
-		run(line)
+		if openBraces > 0 {
+			continue
+		}
+
+		input := accumulatedInput.String()
+		accumulatedInput.Reset()
+		openBraces = 0 // Reset just in case
+
+		l := lexer.New(input)
+		p := parser.New(l)
+		program := p.ParseProgram()
+
+		if len(p.Errors()) > 0 {
+			printParserErrors(os.Stdout, p.Errors())
+			continue
+		}
+
+		comp := compiler.NewWithState(symbolTable, constants)
+		err := comp.Compile(program)
+		if err != nil {
+			fmt.Printf("compiler execution failed: %s\n", err)
+			continue
+		}
+
+		// Update constants for next run
+		code := comp.Bytecode()
+		constants = code.Constants
+
+		machine := vm.NewWithGlobalsStore(code, globals)
+		err = machine.Run(context.Background())
+		if err != nil {
+			fmt.Printf("vm execution failed: %s\n", err)
+			continue
+		}
+
+		lastPopped := machine.LastPoppedStackElem()
+		if lastPopped != nil {
+			fmt.Println(lastPopped.Inspect())
+		}
 	}
 }
 

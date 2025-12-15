@@ -190,6 +190,10 @@ func (vm *VM) Run(ctx context.Context) error {
 			numElements := int(opcode.ReadUint16(ins[ip+1:]))
 			vm.currentFrame().ip += 2
 
+			if vm.sp-numElements < 0 {
+				return fmt.Errorf("stack underflow in OpArray")
+			}
+
 			array := vm.buildArray(vm.sp-numElements, vm.sp)
 			vm.sp = vm.sp - numElements
 
@@ -201,6 +205,10 @@ func (vm *VM) Run(ctx context.Context) error {
 		case opcode.OpHash:
 			numElements := int(opcode.ReadUint16(ins[ip+1:]))
 			vm.currentFrame().ip += 2
+
+			if vm.sp-numElements < 0 {
+				return fmt.Errorf("stack underflow in OpHash")
+			}
 
 			hash, err := vm.buildHash(vm.sp-numElements, vm.sp)
 			if err != nil {
@@ -258,6 +266,12 @@ func (vm *VM) Run(ctx context.Context) error {
 		case opcode.OpReturnValue:
 			returnValue := vm.pop()
 
+			if vm.framesIndex == 1 {
+				// Returning from main frame
+				vm.popFrame()
+				return nil
+			}
+
 			frame := vm.popFrame()
 			vm.sp = frame.basePointer - 1 // -1 to pop the function/closure itself
 
@@ -267,6 +281,11 @@ func (vm *VM) Run(ctx context.Context) error {
 			}
 
 		case opcode.OpReturn:
+			if vm.framesIndex == 1 {
+				vm.popFrame()
+				return nil
+			}
+
 			frame := vm.popFrame()
 			vm.sp = frame.basePointer - 1
 
@@ -279,6 +298,10 @@ func (vm *VM) Run(ctx context.Context) error {
 			constIndex := opcode.ReadUint16(ins[ip+1:])
 			numFree := opcode.ReadUint8(ins[ip+3:])
 			vm.currentFrame().ip += 3
+
+			if vm.sp-int(numFree) < 0 {
+				return fmt.Errorf("stack underflow in OpClosure")
+			}
 
 			err := vm.pushClosure(int(constIndex), int(numFree))
 			if err != nil {
