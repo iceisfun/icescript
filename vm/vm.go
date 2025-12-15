@@ -592,6 +592,10 @@ func (vm *VM) executeComparison(op opcode.Opcode) error {
 		return vm.executeFloatComparison(op, left, right)
 	}
 
+	if left.Type() == object.STRING_OBJ && right.Type() == object.STRING_OBJ {
+		return vm.executeStringComparison(op, left, right)
+	}
+
 	switch op {
 	case opcode.OpEqual:
 		return vm.push(nativeBoolToBooleanObject(right == left))
@@ -617,6 +621,23 @@ func (vm *VM) executeFloatComparison(
 	case opcode.OpGreaterThan:
 		return vm.push(nativeBoolToBooleanObject(leftVal > rightVal))
 	default: // Support less than via reordering or future opcode
+		return fmt.Errorf("unknown operator: %d", op)
+	}
+}
+
+func (vm *VM) executeStringComparison(
+	op opcode.Opcode,
+	left, right object.Object,
+) error {
+	leftVal := left.(*object.String).Value
+	rightVal := right.(*object.String).Value
+
+	switch op {
+	case opcode.OpEqual:
+		return vm.push(nativeBoolToBooleanObject(leftVal == rightVal))
+	case opcode.OpNotEqual:
+		return vm.push(nativeBoolToBooleanObject(leftVal != rightVal))
+	default:
 		return fmt.Errorf("unknown operator: %d", op)
 	}
 }

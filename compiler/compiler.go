@@ -416,6 +416,10 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		c.emit(opcode.OpClosure, c.addConstant(compiledFn), len(freeSymbols))
 
+	case *ast.NullLiteral:
+		c.lastLine = node.Token.Line
+		c.emit(opcode.OpNull)
+
 	case *ast.ReturnStatement:
 		c.lastLine = node.Token.Line
 		err := c.Compile(node.ReturnValue)
