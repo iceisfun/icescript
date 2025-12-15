@@ -39,7 +39,7 @@ type ScriptStorage interface {
 
 ### RedisStorage
 
-We provide a production-ready Redis implementation.
+We provide a example Redis implementation.
 
 **Usage:**
 
