@@ -37,8 +37,9 @@ func New() *Compiler {
 
 	symbolTable := NewSymbolTable()
 
-	// Define builtins? Or leave for user?
-	// For now empty.
+	for i, v := range object.Builtins {
+		symbolTable.DefineBuiltin(i, v.Name)
+	}
 
 	return &Compiler{
 		constants:   []object.Object{},
@@ -373,6 +374,27 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 		c.emit(opcode.OpCall, len(node.Arguments))
+
+	case *ast.ForStatement:
+		startPos := len(c.currentInstructions())
+
+		if node.Condition != nil {
+			err := c.Compile(node.Condition)
+			if err != nil {
+				return err
+			}
+			// jumpNotTruthy to end
+			// We need to backpatch "end".
+			// But for now, we only support infinite loops (Condition == nil)
+			return fmt.Errorf("compile error: for loop condition not implemented yet")
+		}
+
+		err := c.Compile(node.Body)
+		if err != nil {
+			return err
+		}
+
+		c.emit(opcode.OpJump, startPos)
 	}
 
 	return nil
@@ -383,6 +405,10 @@ func (c *Compiler) Bytecode() *Bytecode {
 		Instructions: c.currentInstructions(),
 		Constants:    c.constants,
 	}
+}
+
+func (c *Compiler) SymbolTable() *SymbolTable {
+	return c.symbolTable
 }
 
 type Bytecode struct {

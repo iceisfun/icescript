@@ -259,8 +259,15 @@ func (vm *VM) Run(ctx context.Context) error {
 				// If we declare a local, we usually emit code to put nil or the value on the stack via logic (e.g. VarStatement emits code).
 				// So standard stack machine behavior is fine. The SP grows as we push locals.
 
-			// case *object.Builtin:
-			// TODO
+			case *object.Builtin:
+				args := vm.stack[vm.sp-int(numArgs) : vm.sp] // Get args slice
+				result := callee.Fn(args...)
+				vm.sp = vm.sp - int(numArgs) - 1 // Pop args and function
+				if result != nil {
+					vm.push(result)
+				} else {
+					vm.push(Null)
+				}
 
 			default:
 				return fmt.Errorf("calling non-function")
@@ -317,6 +324,16 @@ func (vm *VM) Run(ctx context.Context) error {
 
 			currentClosure := vm.currentFrame().cl
 			err := vm.push(currentClosure.Free[freeIndex])
+			if err != nil {
+				return err
+			}
+
+		case opcode.OpGetBuiltin:
+			builtinIndex := opcode.ReadUint8(ins[ip+1:])
+			vm.currentFrame().ip += 1
+
+			definition := object.Builtins[builtinIndex]
+			err := vm.push(definition.Builtin)
 			if err != nil {
 				return err
 			}
@@ -569,4 +586,19 @@ func isTruthy(obj object.Object) bool {
 	default:
 		return true
 	}
+}
+
+func (vm *VM) SetGlobal(index int, val object.Object) error {
+	if index >= len(vm.globals) {
+		return fmt.Errorf("global index %d out of bounds", index)
+	}
+	vm.globals[index] = val
+	return nil
+}
+
+func (vm *VM) GetGlobal(index int) (object.Object, error) {
+	if index >= len(vm.globals) {
+		return nil, fmt.Errorf("global index %d out of bounds", index)
+	}
+	return vm.globals[index], nil
 }

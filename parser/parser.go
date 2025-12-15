@@ -485,16 +485,20 @@ func (p *Parser) parseMapLiteral() ast.Expression {
 // For Loop Support
 // Simple C-style support for now: for init; cond; post { body }
 func (p *Parser) parseForStatement() ast.Statement {
-	// For now, simpler implementation or placeholders?
-	// Spec says:
-	// for var i = 0; i < 10; i++ { ... }
-	// for x < 100 { ... }
+	stmt := &ast.ForStatement{Token: p.curToken}
 
-	// This is complex for a quick pass. I'll return nil or todo?
-	// The user asked to "START implementing".
-	// I will put a placeholder or simple logic.
+	// For now, only support `for { ... }` (infinite loop)
+	if !p.peekTokenIs(token.LBRACE) {
+		// todo: support conditions
+		return nil
+	}
 
-	return nil // TODO
+	p.nextToken() // skip FOR
+	// now curToken is {
+
+	stmt.Body = p.parseBlockStatement()
+
+	return stmt
 }
 
 func (p *Parser) curTokenIs(t token.TokenType) bool {
