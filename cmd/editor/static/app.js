@@ -210,3 +210,11 @@ document.getElementById('confirm-new-btn').onclick = async () => {
     fetchScripts();
     updateUI();
 };
+
+// Keyboard Shortcuts
+document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveScript();
+    }
+});
