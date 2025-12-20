@@ -211,6 +211,12 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 		return stmt
 	}
 
+	// Also check if next token starts a new statement that definitely isn't an expression
+	if p.peekTokenIs(token.VAR) || p.peekTokenIs(token.RETURN) {
+		stmt.ReturnValue = nil
+		return stmt
+	}
+
 	p.nextToken()
 
 	stmt.ReturnValue = p.parseExpression(LOWEST)

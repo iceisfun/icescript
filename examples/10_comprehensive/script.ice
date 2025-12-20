@@ -15,6 +15,9 @@ func assert(cond, name) {
 
 func testReturn1() {
     return
+
+    var unused = 1
+    return 2
 }
 
 assert(testReturn1() == null, "testReturn1")
