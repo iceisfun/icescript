@@ -231,6 +231,40 @@ var Builtins = []struct {
 		}},
 	},
 	{
+		"randomInt",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 2 {
+				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+			}
+			if ctx == nil || ctx.Rand() == nil {
+				return &Error{Message: "RNG not available in this context"}
+			}
+
+			var min int64
+			switch v := args[0].(type) {
+			case *Integer:
+				min = v.Value
+			default:
+				return &Error{Message: fmt.Sprintf("argument to `randomInt` must be INTEGER, got %s", args[0].Type())}
+			}
+
+			var max int64
+			switch v := args[1].(type) {
+			case *Integer:
+				max = v.Value
+			default:
+				return &Error{Message: fmt.Sprintf("argument to `randomInt` must be INTEGER, got %s", args[1].Type())}
+			}
+
+			if min >= max {
+				return &Error{Message: fmt.Sprintf("min (%d) must be less than max (%d)", min, max)}
+			}
+
+			diff := max - min
+			return &Integer{Value: ctx.Rand().Int63n(diff) + min}
+		}},
+	},
+	{
 		"randomItem",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 1 {
