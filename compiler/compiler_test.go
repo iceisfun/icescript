@@ -130,6 +130,19 @@ func TestFunctionLiterals(t *testing.T) {
 				{opcode.OpPop, []int{}},
 			},
 		},
+		{
+			input: `func() { return }`,
+			expectedConstants: []any{
+				[]code{
+					{opcode.OpNull, []int{}},
+					{opcode.OpReturnValue, []int{}},
+				},
+			},
+			expectedInstructions: []code{
+				{opcode.OpClosure, []int{0, 0}}, // const 0 is fn, 0 free
+				{opcode.OpPop, []int{}},
+			},
+		},
 	}
 	runCompilerTests(t, tests)
 }

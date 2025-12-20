@@ -505,9 +505,13 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 	case *ast.ReturnStatement:
 		c.lastLine = node.Token.Line
-		err := c.Compile(node.ReturnValue)
-		if err != nil {
-			return err
+		if node.ReturnValue == nil {
+			c.emit(opcode.OpNull)
+		} else {
+			err := c.Compile(node.ReturnValue)
+			if err != nil {
+				return err
+			}
 		}
 
 		c.emit(opcode.OpReturnValue)
