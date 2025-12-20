@@ -466,6 +466,9 @@ func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {
 
 	for p.peekTokenIs(token.COMMA) {
 		p.nextToken()
+		if p.peekTokenIs(end) {
+			break
+		}
 		p.nextToken()
 		list = append(list, p.parseExpression(LOWEST))
 	}
