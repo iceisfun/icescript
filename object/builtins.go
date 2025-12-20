@@ -231,6 +231,29 @@ var Builtins = []struct {
 		}},
 	},
 	{
+		"randomItem",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 1 {
+				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+			}
+			if ctx == nil || ctx.Rand() == nil {
+				return &Error{Message: "RNG not available in this context"}
+			}
+
+			arr, ok := args[0].(*Array)
+			if !ok {
+				return &Error{Message: fmt.Sprintf("argument to `randomItem` must be ARRAY, got %s", args[0].Type())}
+			}
+
+			if len(arr.Elements) == 0 {
+				return NullObj
+			}
+
+			idx := ctx.Rand().Intn(len(arr.Elements))
+			return arr.Elements[idx]
+		}},
+	},
+	{
 		"now",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 0 {

@@ -222,6 +222,34 @@ func TestClosures(t *testing.T) {
 	runVmTests(t, tests)
 }
 
+func TestBuiltinRandomItem(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			`
+			var a = [];
+			randomItem(a);
+			`,
+			Null,
+		},
+		{
+			`
+			var a = [1];
+			randomItem(a);
+			`,
+			1,
+		},
+		{
+			`
+			var a = [10, 20, 30];
+			var x = randomItem(a);
+			x == 10 || x == 20 || x == 30;
+			`,
+			true,
+		},
+	}
+	runVmTests(t, tests)
+}
+
 func runVmTests(t *testing.T, tests []vmTestCase) {
 	t.Helper()
 
