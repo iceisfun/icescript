@@ -16,6 +16,8 @@ type Compiler struct {
 	scopes     []CompilationScope
 	scopeIndex int
 	lastLine   int
+
+	symbolDefinitions map[ast.Node]Symbol
 }
 
 type CompilationScope struct {
@@ -45,10 +47,11 @@ func New() *Compiler {
 	}
 
 	return &Compiler{
-		constants:   []object.Object{},
-		symbolTable: symbolTable,
-		scopes:      []CompilationScope{mainScope},
-		scopeIndex:  0,
+		constants:         []object.Object{},
+		symbolTable:       symbolTable,
+		symbolDefinitions: make(map[ast.Node]Symbol),
+		scopes:            []CompilationScope{mainScope},
+		scopeIndex:        0,
 	}
 }
 
@@ -62,6 +65,7 @@ func NewWithState(s *SymbolTable, constants []object.Object) *Compiler {
 func (c *Compiler) Compile(node ast.Node) error {
 	switch node := node.(type) {
 	case *ast.Program:
+		c.scanSymbols(node.Statements)
 		for _, s := range node.Statements {
 			err := c.Compile(s)
 			if err != nil {
@@ -299,7 +303,10 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 	case *ast.LetStatement:
 		c.lastLine = node.Token.Line
-		symbol := c.symbolTable.Define(node.Name.Value)
+		symbol, ok := c.symbolDefinitions[node]
+		if !ok {
+			symbol = c.symbolTable.Define(node.Name.Value)
+		}
 		err := c.Compile(node.Value)
 		if err != nil {
 			return err
@@ -313,7 +320,10 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 	case *ast.ShortVarDeclaration:
 		c.lastLine = node.Token.Line
-		symbol := c.symbolTable.Define(node.Name.Value)
+		symbol, ok := c.symbolDefinitions[node]
+		if !ok {
+			symbol = c.symbolTable.Define(node.Name.Value)
+		}
 		err := c.Compile(node.Value)
 		if err != nil {
 			return err
@@ -682,4 +692,17 @@ func (c *Compiler) Bytecode() *Bytecode {
 
 func (c *Compiler) SymbolTable() *SymbolTable {
 	return c.symbolTable
+}
+
+func (c *Compiler) scanSymbols(statements []ast.Statement) {
+	for _, s := range statements {
+		switch s := s.(type) {
+		case *ast.LetStatement:
+			symbol := c.symbolTable.Define(s.Name.Value)
+			c.symbolDefinitions[s] = symbol
+		case *ast.ShortVarDeclaration:
+			symbol := c.symbolTable.Define(s.Name.Value)
+			c.symbolDefinitions[s] = symbol
+		}
+	}
 }
