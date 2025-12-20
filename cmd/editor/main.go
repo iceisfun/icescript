@@ -15,10 +15,11 @@ import (
 )
 
 var (
-	addr      = flag.String("addr", ":8080", "Address to listen on")
-	redisHost = flag.String("redis-host", "localhost", "Redis host")
-	redisPort = flag.Int("redis-port", 6379, "Redis port")
-	staticDir = flag.String("static", "./cmd/editor/static", "Path to static files")
+	addr         = flag.String("addr", ":8080", "Address to listen on")
+	redisHost    = flag.String("redis-host", "localhost", "Redis host")
+	redisPort    = flag.Int("redis-port", 6379, "Redis port")
+	scriptPrefix = flag.String("script-prefix", "icescript:", "Script prefix")
+	staticDir    = flag.String("static", "./cmd/editor/static", "Path to static files")
 )
 
 func main() {
@@ -30,7 +31,7 @@ func main() {
 	})
 
 	// 2. Setup Storage
-	storage := auxlib.NewRedisStorage(rdb, "icescript:")
+	storage := auxlib.NewRedisStorage(rdb, *scriptPrefix)
 
 	// 3. Setup Service
 	svc := auxlib.NewService(storage)
