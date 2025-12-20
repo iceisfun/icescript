@@ -13,6 +13,22 @@ func assert(cond, name) {
     }
 }
 
+func testReturn1() {
+    return
+}
+
+assert(testReturn1() == null, "testReturn1")
+
+func testReturn2() {
+    return 2
+}
+
+assert(testReturn2() == 2, "testReturn2")
+
+
+
+
+
 // ========================================
 // Arithmetic Operations (integers only)
 // ========================================
