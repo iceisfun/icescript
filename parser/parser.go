@@ -198,13 +198,22 @@ func (p *Parser) parseShortVarDeclaration() *ast.ShortVarDeclaration {
 func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	stmt := &ast.ReturnStatement{Token: p.curToken}
 
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+		// Implicit return null
+		stmt.ReturnValue = nil
+		return stmt
+	}
+
+	if p.peekTokenIs(token.RBRACE) || p.peekTokenIs(token.EOF) {
+		// Implicit return null at end of block
+		stmt.ReturnValue = nil
+		return stmt
+	}
+
 	p.nextToken()
 
-	if p.curTokenIs(token.SEMICOLON) || p.curTokenIs(token.RBRACE) || p.curTokenIs(token.EOF) {
-		stmt.ReturnValue = nil // optional return value
-	} else {
-		stmt.ReturnValue = p.parseExpression(LOWEST)
-	}
+	stmt.ReturnValue = p.parseExpression(LOWEST)
 
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
@@ -365,9 +374,6 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 		stmt := p.parseStatement()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
-		}
-		if p.curTokenIs(token.RBRACE) {
-			continue
 		}
 		p.nextToken()
 	}
