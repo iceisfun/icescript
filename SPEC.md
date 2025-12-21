@@ -300,6 +300,34 @@ machine.SetGlobal(mySym.Index, &object.Builtin{
 The `BuiltinContext` interface provides access to:
 - `Rand() *rand.Rand` - Random number generator
 - `Now() time.Time` - Current time
+- `Get(key string) (any, bool)` - Retrieve value from context
+- `Set(key string, value any)` - Store value in context
+
+### 8.1 State Persistence
+
+State can be persisted across builtin calls using `Get` and `Set`. This is useful for implementing iterators, long-running tasks, or complex state machines.
+
+```go
+// Example: A builtin that counts how many times it has been called
+counterSym := c.SymbolTable().Define("countMe")
+
+machine.SetGlobal(counterSym.Index, &object.Builtin{
+    Fn: func(ctx object.BuiltinContext, args ...object.Object) object.Object {
+        // Retrieve state
+        val, ok := ctx.Get("my_counter")
+        count := int64(0)
+        if ok {
+            count = val.(int64)
+        }
+
+        // Update state
+        count++
+        ctx.Set("my_counter", count)
+
+        return &object.Integer{Value: count}
+    },
+})
+```
 
 ## 9. Performance Considerations
 
