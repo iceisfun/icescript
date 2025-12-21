@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/iceisfun/icescript/compiler"
@@ -38,6 +39,9 @@ type VM struct {
 
 	rng    *rand.Rand
 	output io.Writer
+
+	ctxStore map[string]any
+	ctxMu    sync.RWMutex
 }
 
 type Frame struct {
@@ -62,6 +66,18 @@ func (vm *VM) SetOutput(w io.Writer) {
 	vm.output = w
 }
 
+func (vm *VM) Get(k string) any {
+	vm.ctxMu.RLock()
+	defer vm.ctxMu.RUnlock()
+	return vm.ctxStore[k]
+}
+
+func (vm *VM) Set(k string, v any) {
+	vm.ctxMu.Lock()
+	defer vm.ctxMu.Unlock()
+	vm.ctxStore[k] = v
+}
+
 func New(bytecode *compiler.Bytecode) *VM {
 	mainFn := &object.CompiledFunction{Instructions: bytecode.Instructions, SourceMap: bytecode.SourceMap, Name: "main"}
 	mainClosure := &object.Closure{Fn: mainFn}
@@ -80,6 +96,7 @@ func New(bytecode *compiler.Bytecode) *VM {
 		symbolTable: bytecode.SymbolTable,
 		rng:         rand.New(rand.NewSource(time.Now().UnixNano())),
 		output:      os.Stdout,
+		ctxStore:    make(map[string]any),
 	}
 }
 

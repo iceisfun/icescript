@@ -18,6 +18,8 @@ type BuiltinContext interface {
 	Rand() *rand.Rand
 	Now() time.Time
 	Writer() io.Writer
+	Get(k string) any
+	Set(k string, v any)
 }
 
 type ObjectType string
