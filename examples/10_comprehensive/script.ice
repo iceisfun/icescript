@@ -45,6 +45,8 @@ assert(17 % 5 == 2, "integer modulo")
 assert(-5 + 3 == -2, "negative addition")
 assert(-10 * -2 == 20, "negative * negative")
 assert(-15 / 3 == -5, "negative division")
+assert(-1.5 < 0.0, "negative float")
+assert(-1.5 == -1.5, "negative float equality")
 
 // ========================================
 // Comparison Operators
