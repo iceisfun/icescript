@@ -285,7 +285,11 @@ func (vm *VM) Run(ctx context.Context) error {
 			vm.currentFrame().ip += 2
 
 			condition := vm.pop()
-			if !isTruthy(condition) {
+			result, err := isTruthy(condition)
+			if err != nil {
+				return vm.newRuntimeError("%s", err.Error())
+			}
+			if !result {
 				vm.currentFrame().ip = pos - 1
 			}
 
@@ -884,16 +888,20 @@ func nativeBoolToBooleanObject(input bool) *object.Boolean {
 	return False
 }
 
-func isTruthy(obj object.Object) bool {
-	switch obj {
-	case Null:
-		return false
-	case True:
-		return true
-	case False:
-		return false
+func isTruthy(obj object.Object) (bool, error) {
+	switch obj := obj.(type) {
+	case *object.Boolean:
+		return obj.Value, nil
+	case *object.Null:
+		return false, nil
+	case *object.Integer:
+		return obj.Value != 0, nil
+	case *object.Float:
+		return obj.Value != 0.0, nil
+	case *object.String:
+		return obj.Value != "", nil
 	default:
-		return true
+		return false, fmt.Errorf("condition must be boolean, got %s", obj.Type())
 	}
 }
 
