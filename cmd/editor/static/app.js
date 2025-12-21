@@ -188,7 +188,12 @@ document.getElementById('delete-btn').onclick = deleteScript;
 document.getElementById('test-btn').onclick = testScript;
 
 const newDialog = document.getElementById('new-script-dialog');
-document.getElementById('new-btn').onclick = () => newDialog.classList.remove('hidden');
+document.getElementById('new-btn').onclick = () => {
+    editor.setValue('');
+    currentScript = null;
+    updateUI();
+    newDialog.classList.remove('hidden');
+};
 document.getElementById('cancel-new-btn').onclick = () => newDialog.classList.add('hidden');
 document.getElementById('confirm-new-btn').onclick = async () => {
     const nameInput = document.getElementById('new-script-name');
@@ -196,14 +201,8 @@ document.getElementById('confirm-new-btn').onclick = async () => {
     if (!name) return;
 
     currentScript = name;
-
-    // Only set default content if editor is empty or has default placeholder
-    const val = editor.getValue().trim();
-    if (!val || val === '// Select a script or create new one to start coding...') {
-        editor.setValue('// New script ' + name);
-    }
-
-    await saveScript(); // Creates the file
+    // Save empty content or whatever creates the file
+    await saveScript();
 
     newDialog.classList.add('hidden');
     nameInput.value = '';
