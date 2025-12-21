@@ -38,8 +38,8 @@ func TestBuiltinContextStorage(t *testing.T) {
 				return &object.Error{Message: "wrong num args"}
 			}
 			key := args[0].(*object.String).Value
-			val := ctx.Get(key)
-			if val == nil {
+			val, ok := ctx.Get(key)
+			if !ok || val == nil {
 				return object.NullObj
 			}
 			return &object.Integer{Value: val.(int64)}

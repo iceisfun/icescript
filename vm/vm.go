@@ -66,10 +66,11 @@ func (vm *VM) SetOutput(w io.Writer) {
 	vm.output = w
 }
 
-func (vm *VM) Get(k string) any {
+func (vm *VM) Get(k string) (any, bool) {
 	vm.ctxMu.RLock()
 	defer vm.ctxMu.RUnlock()
-	return vm.ctxStore[k]
+	v, ok := vm.ctxStore[k]
+	return v, ok
 }
 
 func (vm *VM) Set(k string, v any) {

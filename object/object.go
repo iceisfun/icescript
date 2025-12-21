@@ -18,7 +18,7 @@ type BuiltinContext interface {
 	Rand() *rand.Rand
 	Now() time.Time
 	Writer() io.Writer
-	Get(k string) any
+	Get(k string) (any, bool)
 	Set(k string, v any)
 }
 
