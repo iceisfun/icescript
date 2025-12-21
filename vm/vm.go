@@ -42,6 +42,8 @@ type VM struct {
 
 	ctxStore map[string]any
 	ctxMu    sync.RWMutex
+
+	printPrefix string
 }
 
 type Frame struct {
@@ -77,6 +79,14 @@ func (vm *VM) Set(k string, v any) {
 	vm.ctxMu.Lock()
 	defer vm.ctxMu.Unlock()
 	vm.ctxStore[k] = v
+}
+
+func (vm *VM) SetPrintPrefix(p string) {
+	vm.printPrefix = p
+}
+
+func (vm *VM) PrintPrefix() string {
+	return vm.printPrefix
 }
 
 func New(bytecode *compiler.Bytecode) *VM {

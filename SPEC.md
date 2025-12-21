@@ -302,6 +302,7 @@ The `BuiltinContext` interface provides access to:
 - `Now() time.Time` - Current time
 - `Get(key string) (any, bool)` - Retrieve value from context
 - `Set(key string, value any)` - Store value in context
+- `PrintPrefix() string` - Retrieve the configured print prefix (set via `VM.SetPrintPrefix`)
 
 ### 8.1 State Persistence
 

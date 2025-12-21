@@ -31,6 +31,9 @@ var Builtins = []struct {
 		"print",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			out := []interface{}{}
+			if prefix := ctx.PrintPrefix(); prefix != "" {
+				out = append(out, prefix)
+			}
 			for _, arg := range args {
 				out = append(out, arg.Inspect())
 			}

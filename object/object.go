@@ -20,6 +20,7 @@ type BuiltinContext interface {
 	Writer() io.Writer
 	Get(k string) (any, bool)
 	Set(k string, v any)
+	PrintPrefix() string
 }
 
 type ObjectType string
