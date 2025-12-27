@@ -42,6 +42,7 @@ type VM struct {
 
 	ctxStore map[string]any
 	ctxMu    sync.RWMutex
+	mu       sync.Mutex
 
 	printPrefix string
 }
@@ -128,6 +129,9 @@ func (vm *VM) Instructions() []byte {
 // Invoke calls the given function/closure with arguments.
 // It is cancellable via ctx.
 func (vm *VM) Invoke(ctx context.Context, fn object.Object, args ...object.Object) (object.Object, error) {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+
 	// 1. Validate function type
 	closure, ok := fn.(*object.Closure)
 	if !ok {
@@ -168,7 +172,7 @@ func (vm *VM) Invoke(ctx context.Context, fn object.Object, args ...object.Objec
 	vm.sp = frame.basePointer + closure.Fn.NumLocals
 
 	// 6. Run
-	err = vm.Run(ctx)
+	err = vm.run(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +182,9 @@ func (vm *VM) Invoke(ctx context.Context, fn object.Object, args ...object.Objec
 }
 
 func (vm *VM) GetGlobal(name string) (object.Object, error) {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+
 	if vm.symbolTable == nil {
 		return nil, fmt.Errorf("no symbol table available")
 	}
@@ -195,6 +202,12 @@ func (vm *VM) GetGlobal(name string) (object.Object, error) {
 }
 
 func (vm *VM) Run(ctx context.Context) error {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	return vm.run(ctx)
+}
+
+func (vm *VM) run(ctx context.Context) error {
 	var (
 		ip  int
 		ins []byte
@@ -910,6 +923,9 @@ func isTruthy(obj object.Object) (bool, error) {
 }
 
 func (vm *VM) SetGlobal(index int, val object.Object) error {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+
 	if index >= len(vm.globals) {
 		return fmt.Errorf("global index %d out of bounds", index)
 	}
