@@ -39,6 +39,7 @@ const (
 	HASH_OBJ              = "HASH"
 	COMPILED_FUNCTION_OBJ = "COMPILED_FUNCTION"
 	CLOSURE_OBJ           = "CLOSURE"
+	USER_OBJ              = "USER_OBJ"
 )
 
 type Object interface {
