@@ -146,6 +146,8 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		// Otherwise, it's a function literal expression statement
 		return p.parseExpressionStatement()
+	case token.SEMICOLON:
+		return nil
 	default:
 		if p.curTokenIs(token.IDENT) && p.peekTokenIs(token.ASSIGN_DECLARE) {
 			return p.parseShortVarDeclaration()
@@ -556,6 +558,10 @@ func (p *Parser) parseMapLiteral() ast.Expression {
 
 	for !p.peekTokenIs(token.RBRACE) {
 		p.nextToken()
+		if p.curTokenIs(token.SEMICOLON) {
+			continue
+		}
+
 		key := p.parseExpression(LOWEST)
 
 		if !p.expectPeek(token.COLON) {
@@ -567,8 +573,14 @@ func (p *Parser) parseMapLiteral() ast.Expression {
 
 		hash.Pairs[key] = value
 
-		if !p.peekTokenIs(token.RBRACE) && !p.expectPeek(token.COMMA) {
-			return nil
+		if !p.peekTokenIs(token.RBRACE) {
+			if !p.peekTokenIs(token.COMMA) && !p.peekTokenIs(token.SEMICOLON) {
+				return nil
+			}
+			p.nextToken()
+			for p.peekTokenIs(token.SEMICOLON) {
+				p.nextToken()
+			}
 		}
 	}
 

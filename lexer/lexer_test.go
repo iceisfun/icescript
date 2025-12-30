@@ -44,11 +44,13 @@ line */
 		{token.ASSIGN, "="},
 		{token.INT, "5"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.VAR, "var"},
 		{token.IDENT, "ten"},
 		{token.ASSIGN, "="},
 		{token.INT, "10"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.VAR, "var"},
 		{token.IDENT, "add"},
 		{token.ASSIGN, "="},
@@ -59,12 +61,15 @@ line */
 		{token.IDENT, "y"},
 		{token.RPAREN, ")"},
 		{token.LBRACE, "{"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.IDENT, "x"},
 		{token.PLUS, "+"},
 		{token.IDENT, "y"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.RBRACE, "}"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.VAR, "var"},
 		{token.IDENT, "result"},
 		{token.ASSIGN, "="},
@@ -75,18 +80,21 @@ line */
 		{token.IDENT, "ten"},
 		{token.RPAREN, ")"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.BANG, "!"},
 		{token.MINUS, "-"},
 		{token.SLASH, "/"},
 		{token.ASTERISK, "*"},
 		{token.INT, "5"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.INT, "5"},
 		{token.LT, "<"},
 		{token.INT, "10"},
 		{token.GT, ">"},
 		{token.INT, "5"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.IF, "if"},
 		{token.LPAREN, "("},
 		{token.INT, "5"},
@@ -94,54 +102,71 @@ line */
 		{token.INT, "10"},
 		{token.RPAREN, ")"},
 		{token.LBRACE, "{"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.RETURN, "return"},
 		{token.TRUE, "true"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.RBRACE, "}"},
 		{token.ELSE, "else"},
 		{token.LBRACE, "{"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.RETURN, "return"},
 		{token.FALSE, "false"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.RBRACE, "}"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.INT, "10"},
 		{token.EQ, "=="},
 		{token.INT, "10"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.INT, "10"},
 		{token.NOT_EQ, "!="},
 		{token.INT, "9"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.STRING, "foobar"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.STRING, "foo bar"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.LBRACKET, "["},
 		{token.INT, "1"},
 		{token.COMMA, ","},
 		{token.INT, "2"},
 		{token.RBRACKET, "]"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.LBRACE, "{"},
 		{token.STRING, "foo"},
 		{token.COLON, ":"},
 		{token.STRING, "bar"},
 		{token.RBRACE, "}"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.FLOAT, "3.14"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.LBRACKET, "["},
 		{token.INT, "1"},
 		{token.COLON, ":"},
 		{token.INT, "2"},
 		{token.RBRACKET, "]"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.LBRACKET, "["},
 		{token.COLON, ":"},
 		{token.INT, "1"},
 		{token.RBRACKET, "]"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
 		{token.LBRACKET, "["},
 		{token.INT, "2"},
 		{token.COLON, ":"},
 		{token.RBRACKET, "]"},
 		{token.SEMICOLON, ";"},
+		{token.SEMICOLON, ";"}, // newline
+		{token.SEMICOLON, ";"}, // single line comment newline
+		{token.SEMICOLON, ";"}, // multi line comment newline
 		{token.EOF, ""},
 	}
 
@@ -175,11 +200,17 @@ func TestStringEscapeSequences(t *testing.T) {
 		expectedType    token.TokenType
 		expectedLiteral string
 	}{
+		{token.SEMICOLON, ";"}, // initial newline
 		{token.STRING, "newline\n"},
+		{token.SEMICOLON, ";"},
 		{token.STRING, "tab\t"},
+		{token.SEMICOLON, ";"},
 		{token.STRING, "quote\""},
+		{token.SEMICOLON, ";"},
 		{token.STRING, "backslash\\"},
+		{token.SEMICOLON, ";"},
 		{token.STRING, "mixed\n\t\"\\"},
+		{token.SEMICOLON, ";"},
 		{token.EOF, ""},
 	}
 

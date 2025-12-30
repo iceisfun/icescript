@@ -5,6 +5,14 @@ func assert(cond, msg) {
     }
 }
 
+func test() {
+    return
+    print("this should NOT run and should call panic next")
+    panic("this is not running because the result of print is returning")
+}
+
+test()
+
 // Math
 assert(sqrt(16) == 4.0, "sqrt(16)")
 assert(hypot(0, 0, 3, 4) == 5.0, "hypot(0,0,3,4)")
@@ -41,5 +49,10 @@ var start = now()
 assert(start > 0, "now() returns > 0")
 var diff = since(start)
 assert(diff >= 0, "since() >= 0")
+assert(
+    diff >= 0,
+    "since()
+    >= 0"
+)
 
 print("All standard library tests passed!")

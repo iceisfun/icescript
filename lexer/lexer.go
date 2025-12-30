@@ -9,6 +9,7 @@ type Lexer struct {
 	ch           byte // current char under examination
 	line         int
 	col          int
+	parenCount   int // track nesting level of ( ) and [ ]
 }
 
 func New(input string) *Lexer {
@@ -44,6 +45,15 @@ func (l *Lexer) NextToken() token.Token {
 	tok.Col = l.col
 
 	switch l.ch {
+	case '\n':
+		// If we are here, it means parenCount == 0 (otherwise skipWhitespace would have skipped it)
+		// We treat this as a semicolon
+		tok = newToken(token.SEMICOLON, ';')
+		// We need to advance line/col manually since readChar won't do it in the "skip" sense
+		// Actually, we just consume the char.
+		// NOTE: skipWhitespace didn't consume this \n.
+		l.line++
+		l.col = 0
 	case '=':
 		if l.peekChar() == '=' {
 			ch := l.ch
@@ -108,16 +118,20 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.COMMA, l.ch)
 	case '(':
 		tok = newToken(token.LPAREN, l.ch)
+		l.parenCount++
 	case ')':
 		tok = newToken(token.RPAREN, l.ch)
+		l.parenCount--
 	case '{':
 		tok = newToken(token.LBRACE, l.ch)
 	case '}':
 		tok = newToken(token.RBRACE, l.ch)
 	case '[':
 		tok = newToken(token.LBRACKET, l.ch)
+		l.parenCount++
 	case ']':
 		tok = newToken(token.RBRACKET, l.ch)
+		l.parenCount--
 	case '.':
 		tok = newToken(token.DOT, l.ch)
 	case '"':
@@ -168,6 +182,9 @@ func (l *Lexer) NextToken() token.Token {
 func (l *Lexer) skipWhitespace() {
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
 		if l.ch == '\n' {
+			if l.parenCount == 0 {
+				return
+			}
 			l.line++
 			l.col = 0
 		}
