@@ -15,7 +15,7 @@ func assert(cond, name) {
 
 func testReturn1() {
     return
-
+    panic("won't run")
     var unused = 1
     return 2
 }
@@ -366,6 +366,17 @@ assert(len(keys({})) == 0, "empty hash keys")
 assert(len([42]) == 1, "single element array")
 assert(len("x") == 1, "single char string")
 assert(len(keys({"a": 1})) == 1, "single key hash")
+assert(len(push([42], 42, 41)) == 42, "push")
+
+// ========================================
+// Is Type Testing
+// ========================================
+assert(1 is int, "1 is int")
+assert(3.141 is float, "3.141 is float")
+assert("hello" is string, "hello is string")
+assert([1, 2, 3] is array, "[1, 2, 3] is array")
+assert(true is bool, "true is bool")
+assert(null is null, "null is null")
 
 // ========================================
 // Summary
