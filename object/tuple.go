@@ -55,3 +55,75 @@ func (t *Tuple) AsString() (string, bool) {
 func (t *Tuple) AsBool() (bool, bool) {
 	return t.first().AsBool()
 }
+
+func (t *Tuple) Equal(other Object) (bool, error) {
+	if other.Type() != TUPLE_OBJ {
+		return false, nil // Not equal if types differ
+	}
+
+	o := other.(*Tuple)
+
+	if len(t.Elements) != len(o.Elements) {
+		return false, nil
+	}
+
+	for i, el := range t.Elements {
+		// Use VM logic for comparison? Handled by Object logic ideally,
+		// but Object interface doesn't expose generic Equals.
+		// Comparison logic is usually in VM.
+		// But here `Equal` is called by VM for complex types.
+
+		// Problem: primitive types like Integer don't implement Equal usually.
+		// VM handles primitives. ObjectEqual is for complex user types or extensive types.
+		// If Tuple elements are primitives, we need to compare them.
+
+		// If element implements ObjectEqual, use it because it will handle cross-comparisons if designed well ???
+		// No, ObjectEqual is usually for UserObjs.
+		// But we need to compare integers too.
+
+		// Let's rely on string inspection as a fallback or handle primitives manually?
+		// Better: Check types and values.
+
+		if el.Type() != o.Elements[i].Type() {
+			return false, nil
+		}
+
+		// Primitive checks
+		switch el.Type() {
+		case INTEGER_OBJ:
+			if el.(*Integer).Value != o.Elements[i].(*Integer).Value {
+				return false, nil
+			}
+		case FLOAT_OBJ:
+			if el.(*Float).Value != o.Elements[i].(*Float).Value {
+				return false, nil
+			}
+		case BOOLEAN_OBJ:
+			if el.(*Boolean).Value != o.Elements[i].(*Boolean).Value {
+				return false, nil
+			}
+		case STRING_OBJ:
+			if el.(*String).Value != o.Elements[i].(*String).Value {
+				return false, nil
+			}
+		case NULL_OBJ:
+			continue
+		case TUPLE_OBJ:
+			eq, err := el.(*Tuple).Equal(o.Elements[i])
+			if err != nil {
+				return false, err
+			}
+			if !eq {
+				return false, nil
+			}
+		default:
+			// Fallback or Not Supported?
+			// Use Inspect for deep equality?
+			if el.Inspect() != o.Elements[i].Inspect() {
+				return false, nil
+			}
+		}
+	}
+
+	return true, nil
+}

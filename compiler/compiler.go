@@ -480,6 +480,16 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 		c.emit(opcode.OpArray, len(node.Elements))
 
+	case *ast.TupleLiteral:
+		c.lastLine = node.Token.Line
+		for _, el := range node.Elements {
+			err := c.Compile(el)
+			if err != nil {
+				return err
+			}
+		}
+		c.emit(opcode.OpTuple, len(node.Elements))
+
 	case *ast.MapLiteral:
 		c.lastLine = node.Token.Line
 		keys := []ast.Expression{}

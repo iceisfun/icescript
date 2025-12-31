@@ -52,6 +52,7 @@ const (
 	OpCurrentClosure
 	OpIs
 	OpSetIndex
+	OpTuple
 )
 
 type Definition struct {
@@ -96,6 +97,7 @@ var definitions = map[Opcode]*Definition{
 	OpCurrentClosure: {"OpCurrentClosure", []int{}},
 	OpIs:             {"OpIs", []int{1}}, // Type ID
 	OpSetIndex:       {"OpSetIndex", []int{}},
+	OpTuple:          {"OpTuple", []int{2}}, // Number of elements
 }
 
 const (

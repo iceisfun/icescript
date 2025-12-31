@@ -310,7 +310,7 @@ func (vm *VM) run(ctx context.Context) error {
 		case opcode.OpSetGlobal:
 			globalIndex := opcode.ReadUint16(ins[ip+1:])
 			vm.currentFrame().ip += 2
-			vm.globals[globalIndex] = unwrapTuple(vm.pop())
+			vm.globals[globalIndex] = vm.pop()
 
 		case opcode.OpGetGlobal:
 			globalIndex := opcode.ReadUint16(ins[ip+1:])
@@ -324,7 +324,7 @@ func (vm *VM) run(ctx context.Context) error {
 			localIndex := opcode.ReadUint8(ins[ip+1:])
 			vm.currentFrame().ip += 1
 			frame := vm.currentFrame()
-			vm.stack[frame.basePointer+int(localIndex)] = unwrapTuple(vm.pop())
+			vm.stack[frame.basePointer+int(localIndex)] = vm.pop()
 
 		case opcode.OpGetLocal:
 			localIndex := opcode.ReadUint8(ins[ip+1:])
@@ -366,6 +366,24 @@ func (vm *VM) run(ctx context.Context) error {
 			vm.sp = vm.sp - numElements
 
 			err = vm.push(hash)
+			if err != nil {
+				return vm.newRuntimeError("%s", err.Error())
+			}
+
+		case opcode.OpTuple:
+			numElements := int(opcode.ReadUint16(ins[ip+1:]))
+			vm.currentFrame().ip += 2
+
+			if vm.sp-numElements < 0 {
+				return vm.newRuntimeError("stack underflow in OpTuple")
+			}
+
+			tuple := &object.Tuple{Elements: make([]object.Object, numElements)}
+			for i := numElements - 1; i >= 0; i-- {
+				tuple.Elements[i] = vm.pop()
+			}
+
+			err := vm.push(tuple)
 			if err != nil {
 				return vm.newRuntimeError("%s", err.Error())
 			}
@@ -730,6 +748,9 @@ func (vm *VM) executeBinaryOperation(op opcode.Opcode) error {
 	if leftType == object.INTEGER_OBJ && rightType == object.INTEGER_OBJ {
 		return vm.executeBinaryIntegerOperation(op, left, right)
 	}
+	if leftType == object.STRING_OBJ && rightType == object.STRING_OBJ {
+		return vm.executeBinaryStringOperation(op, left, right)
+	}
 	// floats, strings...
 
 	return fmt.Errorf("unsupported types for binary operation: %s %s", leftType, rightType)
@@ -755,6 +776,21 @@ func (vm *VM) executeBinaryIntegerOperation(
 		return vm.push(&object.Integer{Value: leftVal % rightVal})
 	default:
 		return fmt.Errorf("unknown integer operator: %d", op)
+	}
+}
+
+func (vm *VM) executeBinaryStringOperation(
+	op opcode.Opcode,
+	left, right object.Object,
+) error {
+	leftVal := left.(*object.String).Value
+	rightVal := right.(*object.String).Value
+
+	switch op {
+	case opcode.OpAdd:
+		return vm.push(&object.String{Value: leftVal + rightVal})
+	default:
+		return fmt.Errorf("unknown string operator: %d", op)
 	}
 }
 

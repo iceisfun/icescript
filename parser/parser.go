@@ -375,6 +375,30 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 
 	exp := p.parseExpression(LOWEST)
 
+	if p.peekTokenIs(token.COMMA) {
+		p.nextToken() // move to COMMA
+		p.nextToken() // move to start of next expression
+
+		// multiple expressions -> tuple
+		tuple := &ast.TupleLiteral{Token: p.curToken, Elements: []ast.Expression{exp}}
+
+		// Parse remaining elements
+		for {
+			tuple.Elements = append(tuple.Elements, p.parseExpression(LOWEST))
+			if p.peekTokenIs(token.COMMA) {
+				p.nextToken() // move to COMMA
+				p.nextToken() // move to start of next expression
+				continue
+			}
+			break
+		}
+
+		if !p.expectPeek(token.RPAREN) {
+			return nil
+		}
+		return tuple
+	}
+
 	if !p.expectPeek(token.RPAREN) {
 		return nil
 	}

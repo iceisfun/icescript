@@ -28,6 +28,12 @@ func testReturn2() {
 
 assert(testReturn2() == 2, "testReturn2")
 
+func testTuple() {
+    return (1, 2, 3)
+}
+
+assert(testTuple() is tuple, "testTuple is tuple")
+assert(testTuple() == (1, 2, 3), "testTuple")
 
 
 
@@ -377,6 +383,7 @@ assert("hello" is string, "hello is string")
 assert([1, 2, 3] is array, "[1, 2, 3] is array")
 assert(true is bool, "true is bool")
 assert(null is null, "null is null")
+assert((1, 2, 3) is tuple, "(1, 2, 3) is tuple")
 
 // ========================================
 // Summary
