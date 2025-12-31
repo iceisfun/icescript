@@ -350,6 +350,41 @@ var Builtins = []struct {
 			return &Tuple{Elements: []Object{args[0], args[1]}}
 		}},
 	},
+	{
+		"typeof",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 1 {
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+			}
+			t := args[0].Type()
+			var s string
+			switch t {
+			case INTEGER_OBJ:
+				s = "integer"
+			case FLOAT_OBJ:
+				s = "float"
+			case BOOLEAN_OBJ:
+				s = "boolean"
+			case NULL_OBJ:
+				s = "null"
+			case ERROR_OBJ:
+				s = "error"
+			case STRING_OBJ:
+				s = "string"
+			case BUILTIN_OBJ:
+				s = "builtin"
+			case ARRAY_OBJ:
+				s = "array"
+			case USER_OBJ:
+				s = "user"
+			case TUPLE_OBJ:
+				s = "tuple"
+			default:
+				s = string(t)
+			}
+			return &String{Value: s}
+		}},
+	},
 }
 
 var NullObj = &Null{}
