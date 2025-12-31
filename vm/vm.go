@@ -541,21 +541,10 @@ func (vm *VM) newRuntimeError(format string, args ...interface{}) error {
 	if currentFrame != nil {
 		if currentFrame.cl != nil && currentFrame.cl.Fn != nil {
 			// Resolve line number from SourceMap
-			// ip is usually pointing to next instruction, so we look back 1
-			// But panic behavior often uses ip-1.
-			// Let's check how existing panic does it.
-			// Wait, existing panic uses debug.Stack() which is Go stack.
-			// We want Script stack.
-
-			// SourceMap is map[int]int (ip -> line)
-			// Compiler emits map for start of instruction.
-			// vm loop increments ip to point to current instruction.
-
+			// ip is usually pointing to next instruction, so we look back
 			rawIP := currentFrame.ip // Points to OpCode
 
-			if l, ok := currentFrame.cl.Fn.SourceMap[rawIP]; ok {
-				line = l
-			}
+			line = translateIPToLine(currentFrame.cl.Fn.SourceMap, rawIP)
 
 			functionName = currentFrame.cl.Fn.Name
 		}
@@ -586,13 +575,14 @@ func (vm *VM) newRuntimeError(format string, args ...interface{}) error {
 }
 
 func translateIPToLine(sourceMap map[int]int, ip int) int {
-	// Simple lookup for now, maybe need range search if map is sparse?
-	// Compiler emits line for every instruction start?
-	if l, ok := sourceMap[ip]; ok {
-		return l
+	// Search backwards from the current IP to find the instruction start
+	// ip points to the *next* instruction or the middle of current one depending on error context.
+	// We check a small window backwards.
+	for i := 0; i < 10; i++ {
+		if l, ok := sourceMap[ip-i]; ok {
+			return l
+		}
 	}
-	// Fallback: search backwards?
-	// For now return 0 or maybe closest
 	return 0
 }
 
@@ -608,33 +598,7 @@ func (vm *VM) stackTrace() []StackFrameInfo {
 
 		line := 0
 		if frame.ip >= 0 {
-			// Find closest line number in SourceMap
-			// Instruction positions in SourceMap are 0-indexed instruction offsets?
-			// Compiler emits: sourceMap[pos] = line.
-			// frame.ip is index into Instructions slice.
-			if l, ok := frame.cl.Fn.SourceMap[frame.ip]; ok {
-				line = l
-			} else {
-				// Fallback or binary search if map is sparse?
-				// My map implementation in compiler is "map[int]int" where int is instruction position.
-				// frame.ip points to the *last executed* instruction (or next? Opcode logic updates ip).
-				// In Run(), switch cases do `vm.currentFrame().ip += width`.
-				// SO `ip` points to the *next* instruction.
-				// The instruction that caused error is likely `ip - width`.
-				// But simpler to just look for approximate.
-				// For now let's try direct lookup. Using the current IP might be "next" instruction.
-				// Better logic: iterate backwards from IP to find a mapped line?
-			}
-
-			// Try to find line for current IP or previous instructions if not mapped
-			if line == 0 {
-				for p := frame.ip; p >= 0; p-- {
-					if l, ok := frame.cl.Fn.SourceMap[p]; ok {
-						line = l
-						break
-					}
-				}
-			}
+			line = translateIPToLine(frame.cl.Fn.SourceMap, frame.ip)
 		}
 
 		name := frame.cl.Fn.Name
