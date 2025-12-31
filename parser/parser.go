@@ -720,7 +720,6 @@ func (p *Parser) parseForStatement() ast.Statement {
 			}
 		}
 	}
-
 	stmt.Body = p.parseBlockStatement()
 
 	return stmt
@@ -827,14 +826,12 @@ func (p *Parser) parseAssignExpression(left ast.Expression) ast.Expression {
 		})
 		return nil
 	}
-	// ... continue in next chunk if needed, but this covers the end of file errors
-	// wait, parseAssignExpression continues... checking original code
+	// check if the current token is an assign, if so, consume it
+	// Wait, parseAssignExpression is called when we encounter the ASSIGN token as an infix operator.
+	// So p.curToken IS ALREADY the ASSIGN token.
 
-	if !p.expectPeek(token.ASSIGN) {
-		return nil
-	}
-
-	p.nextToken()
-	stmt.Value = p.parseExpression(LOWEST)
+	precedence := p.curPrecedence()            // ASSIGN precedence
+	p.nextToken()                              // move to start of value expression
+	stmt.Value = p.parseExpression(precedence) // was LOWEST, but let's respect precedence usually?
 	return stmt
 }
