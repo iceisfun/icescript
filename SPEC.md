@@ -43,7 +43,17 @@ Dynamic typing with the following value types:
 | `Array` | Dynamic array | `[1, 2, 3]` |
 | `Hash` | Hash map | `{"key": "value"}` |
 | `Closure` | Function with captured environment | `func(x) { return x + y }` |
-| `Builtin` | Host-provided function | `print`, `len` |
+| `Computed` | Host-defined behaviors | `UserObject` |
+
+### 3.1 Equality Semantics
+
+| Operands | Behavior |
+|----------|----------|
+| Primitives (`Int`, `Float`, `Bool`, `String`, `Null`) | **Value Equality**: `5 == 5` is `true`, `5 == 6` is `false`. |
+| Cross-Primitive | **Type Mismatch**: `5 == "5"` is `false`. (Legacy behavior preserved) |
+| Non-Primitive (Default) | **Runtime Error**: comparing arrays, hashes, or functions errors. |
+| Host Objects (`UserObj`) | **Opt-in via Interface**: Errors by default. Host types implementing `ObjectEqual` interface invoke custom logic. |
+| Mixed Primitive/Non-Primitive | **Runtime Error**: `UserObj == 5` errors. |
 
 ## 4. Embedding API
 

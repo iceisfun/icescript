@@ -659,13 +659,57 @@ func (vm *VM) executeComparison(op opcode.Opcode) error {
 		return vm.executeStringComparison(op, left, right)
 	}
 
+	// Handle primitive equality fallback
+	if isPrimitive(left.Type()) && isPrimitive(right.Type()) {
+		switch op {
+		case opcode.OpEqual:
+			return vm.push(nativeBoolToBooleanObject(right == left))
+		case opcode.OpNotEqual:
+			return vm.push(nativeBoolToBooleanObject(right != left))
+		default:
+			return fmt.Errorf("unknown operator: %d (%s %s)", op, left.Type(), right.Type())
+		}
+	}
+
+	// For non-primitives, we require strict type matching and explicit support
+	if left.Type() != right.Type() {
+		return fmt.Errorf("type mismatch: %s %s %s", left.Type(), opString(op), right.Type())
+	}
+
+	// Check for explicit equality support
+	if eqObj, ok := left.(object.ObjectEqual); ok {
+		equal, err := eqObj.Equal(right)
+		if err != nil {
+			return err
+		}
+		if op == opcode.OpNotEqual {
+			return vm.push(nativeBoolToBooleanObject(!equal))
+		}
+		return vm.push(nativeBoolToBooleanObject(equal))
+	}
+
+	return fmt.Errorf("equality not supported for type: %s", left.Type())
+}
+
+func isPrimitive(t object.ObjectType) bool {
+	switch t {
+	case object.INTEGER_OBJ, object.FLOAT_OBJ, object.BOOLEAN_OBJ, object.NULL_OBJ, object.STRING_OBJ:
+		return true
+	default:
+		return false
+	}
+}
+
+func opString(op opcode.Opcode) string {
 	switch op {
 	case opcode.OpEqual:
-		return vm.push(nativeBoolToBooleanObject(right == left))
+		return "=="
 	case opcode.OpNotEqual:
-		return vm.push(nativeBoolToBooleanObject(right != left))
+		return "!="
+	case opcode.OpGreaterThan:
+		return ">"
 	default:
-		return fmt.Errorf("unknown operator: %d (%s %s)", op, left.Type(), right.Type())
+		return fmt.Sprintf("OP(%d)", op)
 	}
 }
 

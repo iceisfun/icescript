@@ -57,6 +57,10 @@ type Hashable interface {
 	HashKey() HashKey
 }
 
+type ObjectEqual interface {
+	Equal(other Object) (bool, error)
+}
+
 type Integer struct {
 	Value int64
 }
