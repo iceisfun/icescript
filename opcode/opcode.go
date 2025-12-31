@@ -48,6 +48,7 @@ const (
 	OpGetBuiltin
 	OpClosure
 	OpGetFree
+	OpDestructure
 	OpCurrentClosure
 )
 
@@ -89,6 +90,7 @@ var definitions = map[Opcode]*Definition{
 	OpGetBuiltin:     {"OpGetBuiltin", []int{1}},
 	OpClosure:        {"OpClosure", []int{2, 1}}, // Const index of fn, count of free vars
 	OpGetFree:        {"OpGetFree", []int{1}},
+	OpDestructure:    {"OpDestructure", []int{1}}, // Number of elements expected
 	OpCurrentClosure: {"OpCurrentClosure", []int{}},
 }
 

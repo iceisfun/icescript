@@ -167,12 +167,21 @@ func (p *Parser) parseStatement() ast.Statement {
 
 func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt := &ast.LetStatement{Token: p.curToken}
+	stmt.Names = []*ast.Identifier{}
 
 	if !p.expectPeek(token.IDENT) {
 		return nil
 	}
 
-	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	stmt.Names = append(stmt.Names, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken() // consume the last Identifier
+		if !p.expectPeek(token.IDENT) {
+			return nil
+		}
+		stmt.Names = append(stmt.Names, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+	}
 
 	if !p.expectPeek(token.ASSIGN) {
 		return nil
@@ -190,7 +199,16 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 }
 
 func (p *Parser) parseShortVarDeclaration() *ast.ShortVarDeclaration {
-	stmt := &ast.ShortVarDeclaration{Name: &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}}
+	stmt := &ast.ShortVarDeclaration{Names: []*ast.Identifier{}}
+	stmt.Names = append(stmt.Names, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken()
+		if !p.expectPeek(token.IDENT) {
+			return nil
+		}
+		stmt.Names = append(stmt.Names, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+	}
 
 	p.nextToken()           // consume IDENT
 	stmt.Token = p.curToken // :=
@@ -731,12 +749,13 @@ func (p *Parser) parseFunctionDeclaration() ast.Statement {
 
 	p.nextToken() // consume FUNC
 
-	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	name := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	stmt.Names = []*ast.Identifier{name}
 
 	// Function literal part
 	lit := &ast.FunctionLiteral{
 		Token: token.Token{Type: token.FUNCTION, Literal: "func"},
-		Name:  stmt.Name.Value,
+		Name:  name.Value,
 	}
 
 	if !p.expectPeek(token.LPAREN) {

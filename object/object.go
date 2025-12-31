@@ -40,6 +40,8 @@ const (
 	COMPILED_FUNCTION_OBJ = "COMPILED_FUNCTION"
 	CLOSURE_OBJ           = "CLOSURE"
 	USER_OBJ              = "USER_OBJ"
+	TUPLE_OBJ             = "TUPLE"
+	CRITICAL_OBJ          = "CRITICAL"
 )
 
 type Object interface {

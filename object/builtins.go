@@ -14,7 +14,7 @@ var Builtins = []struct {
 		"len",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 1 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
 			}
 
 			switch arg := args[0].(type) {
@@ -23,7 +23,7 @@ var Builtins = []struct {
 			case *Array:
 				return &Integer{Value: int64(len(arg.Elements))}
 			default:
-				return &Error{Message: fmt.Sprintf("argument to `len` not supported, got %s", args[0].Type())}
+				return &Critical{Message: fmt.Sprintf("argument to `len` not supported, got %s", args[0].Type())}
 			}
 		}},
 	},
@@ -50,7 +50,7 @@ var Builtins = []struct {
 		"panic",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 1 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
 			}
 			return &Panic{Message: args[0].Inspect()}
 		}},
@@ -59,11 +59,11 @@ var Builtins = []struct {
 		"push",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 2 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
 			}
 
 			if args[0].Type() != ARRAY_OBJ {
-				return &Error{Message: fmt.Sprintf("argument to `push` must be ARRAY, got %s", args[0].Type())}
+				return &Critical{Message: fmt.Sprintf("argument to `push` must be ARRAY, got %s", args[0].Type())}
 			}
 
 			arr := args[0].(*Array)
@@ -75,12 +75,12 @@ var Builtins = []struct {
 		"keys",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 1 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
 			}
 
 			hash, ok := args[0].(*Hash)
 			if !ok {
-				return &Error{Message: fmt.Sprintf("argument to `keys` must be HASH, got %s", args[0].Type())}
+				return &Critical{Message: fmt.Sprintf("argument to `keys` must be HASH, got %s", args[0].Type())}
 			}
 
 			elements := []Object{}
@@ -94,7 +94,7 @@ var Builtins = []struct {
 		"contains",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 2 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
 			}
 
 			switch container := args[0].(type) {
@@ -108,7 +108,7 @@ var Builtins = []struct {
 			case *String:
 				sub, ok := args[1].(*String)
 				if !ok {
-					return &Error{Message: fmt.Sprintf("second argument to `contains` for STRING must be STRING, got %s", args[1].Type())}
+					return &Critical{Message: fmt.Sprintf("second argument to `contains` for STRING must be STRING, got %s", args[1].Type())}
 				}
 				if strings.Contains(container.Value, sub.Value) {
 					return True
@@ -117,14 +117,14 @@ var Builtins = []struct {
 			case *Hash:
 				key, ok := args[1].(Hashable)
 				if !ok {
-					return &Error{Message: fmt.Sprintf("unusable as hash key: %s", args[1].Type())}
+					return &Critical{Message: fmt.Sprintf("unusable as hash key: %s", args[1].Type())}
 				}
 				if _, ok := container.Pairs[key.HashKey()]; ok {
 					return True
 				}
 				return False
 			default:
-				return &Error{Message: fmt.Sprintf("argument to `contains` not supported, got %s", args[0].Type())}
+				return &Critical{Message: fmt.Sprintf("argument to `contains` not supported, got %s", args[0].Type())}
 			}
 		}},
 	},
@@ -132,7 +132,7 @@ var Builtins = []struct {
 		"distance",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 4 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=4", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=4", len(args))}
 			}
 			vals := make([]float64, 4)
 			for i, arg := range args {
@@ -142,7 +142,7 @@ var Builtins = []struct {
 				case *Float:
 					vals[i] = v.Value
 				default:
-					return &Error{Message: fmt.Sprintf("argument %d to `distance` must be number, got %s", i, arg.Type())}
+					return &Critical{Message: fmt.Sprintf("argument %d to `distance` must be number, got %s", i, arg.Type())}
 				}
 			}
 			return &Float{Value: math.Hypot(vals[2]-vals[0], vals[3]-vals[1])}
@@ -152,7 +152,7 @@ var Builtins = []struct {
 		"hypot",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 4 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=4", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=4", len(args))}
 			}
 			vals := make([]float64, 4)
 			for i, arg := range args {
@@ -162,7 +162,7 @@ var Builtins = []struct {
 				case *Float:
 					vals[i] = v.Value
 				default:
-					return &Error{Message: fmt.Sprintf("argument %d to `hypot` must be number, got %s", i, arg.Type())}
+					return &Critical{Message: fmt.Sprintf("argument %d to `hypot` must be number, got %s", i, arg.Type())}
 				}
 			}
 			return &Float{Value: math.Hypot(vals[2]-vals[0], vals[3]-vals[1])}
@@ -172,7 +172,7 @@ var Builtins = []struct {
 		"sqrt",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 1 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
 			}
 			var val float64
 			switch v := args[0].(type) {
@@ -181,7 +181,7 @@ var Builtins = []struct {
 			case *Float:
 				val = v.Value
 			default:
-				return &Error{Message: fmt.Sprintf("argument to `sqrt` must be number, got %s", args[0].Type())}
+				return &Critical{Message: fmt.Sprintf("argument to `sqrt` must be number, got %s", args[0].Type())}
 			}
 			return &Float{Value: math.Sqrt(val)}
 		}},
@@ -190,7 +190,7 @@ var Builtins = []struct {
 		"atan2",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 2 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
 			}
 			vals := make([]float64, 2)
 			for i, arg := range args {
@@ -200,7 +200,7 @@ var Builtins = []struct {
 				case *Float:
 					vals[i] = v.Value
 				default:
-					return &Error{Message: fmt.Sprintf("argument %d to `atan2` must be number, got %s", i, arg.Type())}
+					return &Critical{Message: fmt.Sprintf("argument %d to `atan2` must be number, got %s", i, arg.Type())}
 				}
 			}
 			return &Float{Value: math.Atan2(vals[0], vals[1])}
@@ -210,12 +210,12 @@ var Builtins = []struct {
 		"equalFold",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 2 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
 			}
 			s1, ok1 := args[0].(*String)
 			s2, ok2 := args[1].(*String)
 			if !ok1 || !ok2 {
-				return &Error{Message: "arguments to `equalFold` must be STRINGs"}
+				return &Critical{Message: "arguments to `equalFold` must be STRINGs"}
 			}
 			return NativeBoolToBooleanObject(strings.EqualFold(s1.Value, s2.Value))
 		}},
@@ -224,10 +224,10 @@ var Builtins = []struct {
 		"seed",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 1 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
 			}
 			if ctx == nil || ctx.Rand() == nil {
-				return &Error{Message: "RNG not available in this context"}
+				return &Critical{Message: "RNG not available in this context"}
 			}
 
 			var val int64
@@ -235,7 +235,7 @@ var Builtins = []struct {
 			case *Integer:
 				val = v.Value
 			default:
-				return &Error{Message: fmt.Sprintf("argument to `seed` must be INTEGER, got %s", args[0].Type())}
+				return &Critical{Message: fmt.Sprintf("argument to `seed` must be INTEGER, got %s", args[0].Type())}
 			}
 			ctx.Rand().Seed(val)
 			return NullObj
@@ -245,10 +245,10 @@ var Builtins = []struct {
 		"random",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 0 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
 			}
 			if ctx == nil || ctx.Rand() == nil {
-				return &Error{Message: "RNG not available in this context"}
+				return &Critical{Message: "RNG not available in this context"}
 			}
 			return &Float{Value: ctx.Rand().Float64()}
 		}},
@@ -257,10 +257,10 @@ var Builtins = []struct {
 		"randomInt",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 2 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
 			}
 			if ctx == nil || ctx.Rand() == nil {
-				return &Error{Message: "RNG not available in this context"}
+				return &Critical{Message: "RNG not available in this context"}
 			}
 
 			var min int64
@@ -268,7 +268,7 @@ var Builtins = []struct {
 			case *Integer:
 				min = v.Value
 			default:
-				return &Error{Message: fmt.Sprintf("argument to `randomInt` must be INTEGER, got %s", args[0].Type())}
+				return &Critical{Message: fmt.Sprintf("argument to `randomInt` must be INTEGER, got %s", args[0].Type())}
 			}
 
 			var max int64
@@ -276,11 +276,11 @@ var Builtins = []struct {
 			case *Integer:
 				max = v.Value
 			default:
-				return &Error{Message: fmt.Sprintf("argument to `randomInt` must be INTEGER, got %s", args[1].Type())}
+				return &Critical{Message: fmt.Sprintf("argument to `randomInt` must be INTEGER, got %s", args[1].Type())}
 			}
 
 			if min >= max {
-				return &Error{Message: fmt.Sprintf("min (%d) must be less than max (%d)", min, max)}
+				return &Critical{Message: fmt.Sprintf("min (%d) must be less than max (%d)", min, max)}
 			}
 
 			diff := max - min
@@ -291,15 +291,15 @@ var Builtins = []struct {
 		"randomItem",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 1 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
 			}
 			if ctx == nil || ctx.Rand() == nil {
-				return &Error{Message: "RNG not available in this context"}
+				return &Critical{Message: "RNG not available in this context"}
 			}
 
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return &Error{Message: fmt.Sprintf("argument to `randomItem` must be ARRAY, got %s", args[0].Type())}
+				return &Critical{Message: fmt.Sprintf("argument to `randomItem` must be ARRAY, got %s", args[0].Type())}
 			}
 
 			if len(arr.Elements) == 0 {
@@ -314,10 +314,10 @@ var Builtins = []struct {
 		"now",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 0 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
 			}
 			if ctx == nil {
-				return &Error{Message: "Context not available"}
+				return &Critical{Message: "Context not available"}
 			}
 			return &Integer{Value: ctx.Now().UnixMilli()}
 		}},
@@ -326,19 +326,28 @@ var Builtins = []struct {
 		"since",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 1 {
-				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
 			}
 			if ctx == nil {
-				return &Error{Message: "Context not available"}
+				return &Critical{Message: "Context not available"}
 			}
 
 			start, ok := args[0].(*Integer)
 			if !ok {
-				return &Error{Message: fmt.Sprintf("argument to `since` must be INTEGER (timestamp), got %s", args[0].Type())}
+				return &Critical{Message: fmt.Sprintf("argument to `since` must be INTEGER (timestamp), got %s", args[0].Type())}
 			}
 
 			now := ctx.Now().UnixMilli()
 			return &Integer{Value: now - start.Value}
+		}},
+	},
+	{
+		"testMultiReturn",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 2 {
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+			}
+			return &Tuple{Elements: []Object{args[0], args[1]}}
 		}},
 	},
 }

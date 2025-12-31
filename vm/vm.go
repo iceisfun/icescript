@@ -310,7 +310,7 @@ func (vm *VM) run(ctx context.Context) error {
 		case opcode.OpSetGlobal:
 			globalIndex := opcode.ReadUint16(ins[ip+1:])
 			vm.currentFrame().ip += 2
-			vm.globals[globalIndex] = vm.pop()
+			vm.globals[globalIndex] = unwrapTuple(vm.pop())
 
 		case opcode.OpGetGlobal:
 			globalIndex := opcode.ReadUint16(ins[ip+1:])
@@ -324,7 +324,7 @@ func (vm *VM) run(ctx context.Context) error {
 			localIndex := opcode.ReadUint8(ins[ip+1:])
 			vm.currentFrame().ip += 1
 			frame := vm.currentFrame()
-			vm.stack[frame.basePointer+int(localIndex)] = vm.pop()
+			vm.stack[frame.basePointer+int(localIndex)] = unwrapTuple(vm.pop())
 
 		case opcode.OpGetLocal:
 			localIndex := opcode.ReadUint8(ins[ip+1:])
@@ -416,6 +416,9 @@ func (vm *VM) run(ctx context.Context) error {
 					if rtErr, ok := result.(*object.Panic); ok {
 						return vm.newRuntimeError("%s", rtErr.Message)
 					}
+					if crit, ok := result.(*object.Critical); ok {
+						return vm.newRuntimeError("%s", crit.Message)
+					}
 					vm.push(result)
 				} else {
 					vm.push(Null)
@@ -490,6 +493,39 @@ func (vm *VM) run(ctx context.Context) error {
 			err := vm.push(definition.Builtin)
 			if err != nil {
 				return vm.newRuntimeError("%s", err.Error())
+			}
+
+		case opcode.OpDestructure:
+			numElements := int(opcode.ReadUint8(ins[ip+1:]))
+			vm.currentFrame().ip += 1
+
+			obj := vm.pop()
+
+			if tuple, ok := obj.(*object.Tuple); ok {
+				// Check for checks (Case D)
+				if len(tuple.Elements) < numElements {
+					return vm.newRuntimeError("not enough values to unpack: have %d, want %d", len(tuple.Elements), numElements)
+				}
+				// Push elements in order so they can be popped in reverse order by subsequent Sets
+				// Example: var a, b = fn() -> fn returns (1, 2)
+				// Stack: [..., 1, 2]
+				// OpSetLocal b -> pops 2
+				// OpSetLocal a -> pops 1
+				for i := 0; i < numElements; i++ {
+					err := vm.push(tuple.Elements[i])
+					if err != nil {
+						return vm.newRuntimeError("%s", err.Error())
+					}
+				}
+			} else {
+				// Scalar value, treat as single element
+				if numElements != 1 {
+					return vm.newRuntimeError("cannot destructure non-tuple into %d values", numElements)
+				}
+				err := vm.push(obj)
+				if err != nil {
+					return vm.newRuntimeError("%s", err.Error())
+				}
 			}
 		}
 	}
@@ -794,8 +830,16 @@ func (vm *VM) executeIntegerComparison(
 	}
 }
 
+// Helper to unwrap Tuple to first element (Case B)
+func unwrapTuple(obj object.Object) object.Object {
+	if tuple, ok := obj.(*object.Tuple); ok {
+		return tuple.Elements[0]
+	}
+	return obj
+}
+
 func (vm *VM) executeBangOperator() error {
-	operand := vm.pop()
+	operand := unwrapTuple(vm.pop())
 
 	switch operand {
 	case True:

@@ -17,7 +17,7 @@ type Compiler struct {
 	scopeIndex int
 	lastLine   int
 
-	symbolDefinitions map[ast.Node]Symbol
+	symbolDefinitions map[ast.Node][]Symbol
 }
 
 type CompilationScope struct {
@@ -49,7 +49,7 @@ func New() *Compiler {
 	return &Compiler{
 		constants:         []object.Object{},
 		symbolTable:       symbolTable,
-		symbolDefinitions: make(map[ast.Node]Symbol),
+		symbolDefinitions: make(map[ast.Node][]Symbol),
 		scopes:            []CompilationScope{mainScope},
 		scopeIndex:        0,
 	}
@@ -303,36 +303,60 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 	case *ast.LetStatement:
 		c.lastLine = node.Token.Line
-		symbol, ok := c.symbolDefinitions[node]
+		symbols, ok := c.symbolDefinitions[node]
 		if !ok {
-			symbol = c.symbolTable.Define(node.Name.Value)
+			symbols = make([]Symbol, len(node.Names))
+			for i, name := range node.Names {
+				symbols[i] = c.symbolTable.Define(name.Value)
+			}
 		}
+
 		err := c.Compile(node.Value)
 		if err != nil {
 			return err
 		}
 
-		if symbol.Scope == GlobalScope {
-			c.emit(opcode.OpSetGlobal, symbol.Index)
-		} else {
-			c.emit(opcode.OpSetLocal, symbol.Index)
+		// If multiple names, emit Destructure
+		if len(node.Names) > 1 {
+			c.emit(opcode.OpDestructure, len(node.Names))
+		}
+
+		// Assign in reverse order (stack is LIFO)
+		for i := len(symbols) - 1; i >= 0; i-- {
+			symbol := symbols[i]
+			if symbol.Scope == GlobalScope {
+				c.emit(opcode.OpSetGlobal, symbol.Index)
+			} else {
+				c.emit(opcode.OpSetLocal, symbol.Index)
+			}
 		}
 
 	case *ast.ShortVarDeclaration:
 		c.lastLine = node.Token.Line
-		symbol, ok := c.symbolDefinitions[node]
+		symbols, ok := c.symbolDefinitions[node]
 		if !ok {
-			symbol = c.symbolTable.Define(node.Name.Value)
+			symbols = make([]Symbol, len(node.Names))
+			for i, name := range node.Names {
+				symbols[i] = c.symbolTable.Define(name.Value)
+			}
 		}
+
 		err := c.Compile(node.Value)
 		if err != nil {
 			return err
 		}
 
-		if symbol.Scope == GlobalScope {
-			c.emit(opcode.OpSetGlobal, symbol.Index)
-		} else {
-			c.emit(opcode.OpSetLocal, symbol.Index)
+		if len(node.Names) > 1 {
+			c.emit(opcode.OpDestructure, len(node.Names))
+		}
+
+		for i := len(symbols) - 1; i >= 0; i-- {
+			symbol := symbols[i]
+			if symbol.Scope == GlobalScope {
+				c.emit(opcode.OpSetGlobal, symbol.Index)
+			} else {
+				c.emit(opcode.OpSetLocal, symbol.Index)
+			}
 		}
 
 	case *ast.AssignExpression:
@@ -702,11 +726,17 @@ func (c *Compiler) scanSymbols(statements []ast.Statement) {
 	for _, s := range statements {
 		switch s := s.(type) {
 		case *ast.LetStatement:
-			symbol := c.symbolTable.Define(s.Name.Value)
-			c.symbolDefinitions[s] = symbol
+			symbols := make([]Symbol, len(s.Names))
+			for i, name := range s.Names {
+				symbols[i] = c.symbolTable.Define(name.Value)
+			}
+			c.symbolDefinitions[s] = symbols
 		case *ast.ShortVarDeclaration:
-			symbol := c.symbolTable.Define(s.Name.Value)
-			c.symbolDefinitions[s] = symbol
+			symbols := make([]Symbol, len(s.Names))
+			for i, name := range s.Names {
+				symbols[i] = c.symbolTable.Define(name.Value)
+			}
+			c.symbolDefinitions[s] = symbols
 		}
 	}
 }

@@ -44,8 +44,8 @@ func (p *Program) String() string {
 // Statements
 
 type LetStatement struct {
-	Token token.Token // the token.VAR token
-	Name  *Identifier
+	Token token.Token   // the token.VAR token
+	Names []*Identifier // Changed from Name to Names
 	Value Expression
 }
 
@@ -55,7 +55,13 @@ func (ls *LetStatement) String() string {
 	var out bytes.Buffer
 
 	out.WriteString(ls.TokenLiteral() + " ")
-	out.WriteString(ls.Name.String())
+
+	names := []string{}
+	for _, n := range ls.Names {
+		names = append(names, n.String())
+	}
+	out.WriteString(strings.Join(names, ", "))
+
 	out.WriteString(" = ")
 
 	if ls.Value != nil {
@@ -69,7 +75,7 @@ func (ls *LetStatement) String() string {
 
 type ShortVarDeclaration struct {
 	Token token.Token // the := token
-	Name  *Identifier
+	Names []*Identifier
 	Value Expression
 }
 
@@ -78,7 +84,12 @@ func (sv *ShortVarDeclaration) TokenLiteral() string { return sv.Token.Literal }
 func (sv *ShortVarDeclaration) String() string {
 	var out bytes.Buffer
 
-	out.WriteString(sv.Name.String())
+	names := []string{}
+	for _, n := range sv.Names {
+		names = append(names, n.String())
+	}
+	out.WriteString(strings.Join(names, ", "))
+
 	out.WriteString(" := ")
 
 	if sv.Value != nil {
