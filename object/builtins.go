@@ -58,8 +58,8 @@ var Builtins = []struct {
 	{
 		"push",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
-			if len(args) != 2 {
-				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+			if len(args) != 2 && len(args) != 3 {
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2 or 3", len(args))}
 			}
 
 			if args[0].Type() != ARRAY_OBJ {
@@ -67,7 +67,23 @@ var Builtins = []struct {
 			}
 
 			arr := args[0].(*Array)
-			arr.Elements = append(arr.Elements, args[1])
+
+			count := int64(1)
+			if len(args) == 3 {
+				c, ok := args[2].(*Integer)
+				if !ok {
+					return &Critical{Message: fmt.Sprintf("argument to `push` count must be INTEGER, got %s", args[2].Type())}
+				}
+				count = c.Value
+				if count < 0 {
+					return &Critical{Message: fmt.Sprintf("argument to `push` count must be positive, got %d", count)}
+				}
+			}
+
+			for i := int64(0); i < count; i++ {
+				arr.Elements = append(arr.Elements, args[1])
+			}
+
 			return arr
 		}},
 	},
