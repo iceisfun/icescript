@@ -226,14 +226,21 @@ Returned by `compiler.Compile()`. Examples: undefined variables, invalid syntax.
 
 ### 6.3 Runtime Errors
 
-The `panic(msg)` builtin triggers a runtime error with a full stack trace:
+Runtime errors (including those from `panic(msg)`) are reported as structured `ScriptError` objects containing:
+- **Message**: Error description
+- **Location**: File name and line number
+- **Context**: Function name
+- **Stack Trace**: Call stack with line numbers for each frame
 
+Example output:
 ```
-Runtime error: something went wrong
+Runtime error at script.ice:87 in Wants
+  condition must be boolean, got STRING
+
 Stack trace:
-  at fail (script.ice:3)
-  at nested (script.ice:7)
-  at main (script.ice:12)
+  Wants (line 87)
+  run_check (line 42)
+  main (line 120)
 ```
 
 Source maps generated during compilation map bytecode offsets to line numbers.

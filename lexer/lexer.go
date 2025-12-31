@@ -41,8 +41,9 @@ func (l *Lexer) NextToken() token.Token {
 
 	l.skipWhitespace()
 
-	tok.Line = l.line
-	tok.Col = l.col
+	// Capture position at start of token
+	startLine := l.line
+	startCol := l.col
 
 	switch l.ch {
 	case '\n':
@@ -160,6 +161,8 @@ func (l *Lexer) NextToken() token.Token {
 		if isLetter(l.ch) {
 			tok.Literal = l.readIdentifier()
 			tok.Type = token.LookupIdent(tok.Literal)
+			tok.Line = startLine // Identifier reading moves l.line? No.
+			tok.Col = startCol
 			return tok
 		} else if isDigit(l.ch) {
 			lit, isFloat := l.readNumber()
@@ -169,12 +172,16 @@ func (l *Lexer) NextToken() token.Token {
 			} else {
 				tok.Type = token.INT
 			}
+			tok.Line = startLine
+			tok.Col = startCol
 			return tok
 		} else {
 			tok = newToken(token.ILLEGAL, l.ch)
 		}
 	}
 
+	tok.Line = startLine
+	tok.Col = startCol
 	l.readChar()
 	return tok
 }

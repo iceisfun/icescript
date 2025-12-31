@@ -50,7 +50,7 @@ type (
 
 type Parser struct {
 	l      *lexer.Lexer
-	errors []string
+	errors []token.ScriptError // Use structured errors
 
 	curToken  token.Token
 	peekToken token.Token
@@ -62,7 +62,7 @@ type Parser struct {
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{
 		l:      l,
-		errors: []string{},
+		errors: []token.ScriptError{},
 	}
 
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
@@ -128,6 +128,15 @@ func (p *Parser) ParseProgram() *ast.Program {
 }
 
 func (p *Parser) Errors() []string {
+	// Compatibility: Convert ScriptError to string format
+	var errs []string
+	for _, e := range p.errors {
+		errs = append(errs, e.Error())
+	}
+	return errs
+}
+
+func (p *Parser) StructuredErrors() []token.ScriptError {
 	return p.errors
 }
 
@@ -274,7 +283,11 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	value, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
 	if err != nil {
 		msg := fmt.Sprintf("could not parse %q as integer", p.curToken.Literal)
-		p.errors = append(p.errors, msg)
+		p.errors = append(p.errors, token.ScriptError{
+			Kind:    token.ErrorKindParse,
+			Message: msg,
+			Line:    p.curToken.Line,
+		})
 		return nil
 	}
 
@@ -289,7 +302,11 @@ func (p *Parser) parseFloatLiteral() ast.Expression {
 	value, err := strconv.ParseFloat(p.curToken.Literal, 64)
 	if err != nil {
 		msg := fmt.Sprintf("could not parse %q as float", p.curToken.Literal)
-		p.errors = append(p.errors, msg)
+		p.errors = append(p.errors, token.ScriptError{
+			Kind:    token.ErrorKindParse,
+			Message: msg,
+			Line:    p.curToken.Line,
+		})
 		return nil
 	}
 
@@ -759,7 +776,11 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 
 func (p *Parser) peekError(t token.TokenType) {
 	msg := fmt.Sprintf("expected next token to be %s, got %s instead", t, p.peekToken.Type)
-	p.errors = append(p.errors, msg)
+	p.errors = append(p.errors, token.ScriptError{
+		Kind:    token.ErrorKindParse,
+		Message: msg,
+		Line:    p.peekToken.Line,
+	})
 }
 
 func (p *Parser) registerPrefix(tokenType token.TokenType, fn prefixParseFn) {
@@ -772,7 +793,11 @@ func (p *Parser) registerInfix(tokenType token.TokenType, fn infixParseFn) {
 
 func (p *Parser) noPrefixParseFnError(t token.TokenType) {
 	msg := fmt.Sprintf("no prefix parse function for %s found", t)
-	p.errors = append(p.errors, msg)
+	p.errors = append(p.errors, token.ScriptError{
+		Kind:    token.ErrorKindParse,
+		Message: msg,
+		Line:    p.curToken.Line,
+	})
 }
 
 func (p *Parser) peekPrecedence() int {
@@ -795,12 +820,21 @@ func (p *Parser) parseAssignExpression(left ast.Expression) ast.Expression {
 	if n, ok := left.(*ast.Identifier); ok {
 		stmt.Name = n
 	} else {
-		p.errors = append(p.errors, fmt.Sprintf("expected identifier on left side of assignment, got %T", left))
+		p.errors = append(p.errors, token.ScriptError{
+			Kind:    token.ErrorKindParse,
+			Message: fmt.Sprintf("expected identifier on left side of assignment, got %T", left),
+			Line:    p.curToken.Line,
+		})
+		return nil
+	}
+	// ... continue in next chunk if needed, but this covers the end of file errors
+	// wait, parseAssignExpression continues... checking original code
+
+	if !p.expectPeek(token.ASSIGN) {
 		return nil
 	}
 
 	p.nextToken()
 	stmt.Value = p.parseExpression(LOWEST)
-
 	return stmt
 }

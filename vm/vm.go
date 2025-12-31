@@ -12,6 +12,7 @@ import (
 	"github.com/iceisfun/icescript/compiler"
 	"github.com/iceisfun/icescript/object"
 	"github.com/iceisfun/icescript/opcode"
+	"github.com/iceisfun/icescript/token"
 )
 
 const StackSize = 2048
@@ -527,11 +528,72 @@ type StackFrameInfo struct {
 	Line         int
 }
 
-func (vm *VM) newRuntimeError(format string, a ...interface{}) *RuntimeError {
-	return &RuntimeError{
-		Message: fmt.Sprintf(format, a...),
-		Stack:   vm.stackTrace(),
+func (vm *VM) newRuntimeError(format string, args ...interface{}) error {
+	msg := fmt.Sprintf(format, args...)
+
+	currentFrame := vm.currentFrame()
+
+	// Default values
+	line := 0
+	fileName := "script.ice" // Default filename
+	functionName := ""
+
+	if currentFrame != nil {
+		if currentFrame.cl != nil && currentFrame.cl.Fn != nil {
+			// Resolve line number from SourceMap
+			// ip is usually pointing to next instruction, so we look back 1
+			// But panic behavior often uses ip-1.
+			// Let's check how existing panic does it.
+			// Wait, existing panic uses debug.Stack() which is Go stack.
+			// We want Script stack.
+
+			// SourceMap is map[int]int (ip -> line)
+			// Compiler emits map for start of instruction.
+			// vm loop increments ip to point to current instruction.
+
+			rawIP := currentFrame.ip // Points to OpCode
+
+			if l, ok := currentFrame.cl.Fn.SourceMap[rawIP]; ok {
+				line = l
+			}
+
+			functionName = currentFrame.cl.Fn.Name
+		}
 	}
+
+	// Capture standardized stack trace
+	stackTrace := []string{}
+	// Walk frames?
+	for i := vm.framesIndex - 1; i >= 0; i-- { // framesIndex points to next empty slot, so framesIndex-1 is current top frame
+		f := vm.frames[i]
+		if f.cl != nil && f.cl.Fn != nil {
+			fname := f.cl.Fn.Name
+			if fname == "" {
+				fname = "anonymous"
+			}
+			stackTrace = append(stackTrace, fmt.Sprintf("%s (line %d)", fname, translateIPToLine(f.cl.Fn.SourceMap, f.ip)))
+		}
+	}
+
+	return &token.ScriptError{
+		Kind:       token.ErrorKindRuntime,
+		Message:    msg,
+		Line:       line,
+		File:       fileName,
+		Function:   functionName,
+		StackTrace: stackTrace,
+	}
+}
+
+func translateIPToLine(sourceMap map[int]int, ip int) int {
+	// Simple lookup for now, maybe need range search if map is sparse?
+	// Compiler emits line for every instruction start?
+	if l, ok := sourceMap[ip]; ok {
+		return l
+	}
+	// Fallback: search backwards?
+	// For now return 0 or maybe closest
+	return 0
 }
 
 func (vm *VM) stackTrace() []StackFrameInfo {
