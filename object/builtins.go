@@ -129,6 +129,26 @@ var Builtins = []struct {
 		}},
 	},
 	{
+		"distance",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 4 {
+				return &Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=4", len(args))}
+			}
+			vals := make([]float64, 4)
+			for i, arg := range args {
+				switch v := arg.(type) {
+				case *Integer:
+					vals[i] = float64(v.Value)
+				case *Float:
+					vals[i] = v.Value
+				default:
+					return &Error{Message: fmt.Sprintf("argument %d to `distance` must be number, got %s", i, arg.Type())}
+				}
+			}
+			return &Float{Value: math.Hypot(vals[2]-vals[0], vals[3]-vals[1])}
+		}},
+	},
+	{
 		"hypot",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 4 {
