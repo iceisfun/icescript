@@ -324,6 +324,24 @@ func (ae *AssignExpression) String() string {
 	return out.String()
 }
 
+type IndexAssignExpression struct {
+	Token token.Token // The '=' token
+	Left  *IndexExpression
+	Value Expression
+}
+
+func (ae *IndexAssignExpression) expressionNode()      {}
+func (ae *IndexAssignExpression) TokenLiteral() string { return ae.Token.Literal }
+func (ae *IndexAssignExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(ae.Left.String())
+	out.WriteString(" = ")
+	out.WriteString(ae.Value.String())
+
+	return out.String()
+}
+
 type StringLiteral struct {
 	Token token.Token // the token.STRING token
 	Value string

@@ -312,6 +312,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		if c.lastInstructionIs(opcode.OpPop) {
 			c.removeLastPop()
+		} else {
+			c.emit(opcode.OpNull)
 		}
 
 		// Emit Jump with placeholder
@@ -330,6 +332,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 			if c.lastInstructionIs(opcode.OpPop) {
 				c.removeLastPop()
+			} else {
+				c.emit(opcode.OpNull)
 			}
 		}
 
@@ -423,6 +427,25 @@ func (c *Compiler) Compile(node ast.Node) error {
 		} else {
 			return fmt.Errorf("assignment to %s not supported", symbol.Scope)
 		}
+
+	case *ast.IndexAssignExpression:
+		c.lastLine = node.Token.Line
+		err := c.Compile(node.Left.Left) // The array/map
+		if err != nil {
+			return err
+		}
+
+		err = c.Compile(node.Left.Index) // The index
+		if err != nil {
+			return err
+		}
+
+		err = c.Compile(node.Value) // The value
+		if err != nil {
+			return err
+		}
+
+		c.emit(opcode.OpSetIndex)
 
 	case *ast.Identifier:
 		c.lastLine = node.Token.Line

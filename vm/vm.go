@@ -570,6 +570,16 @@ func (vm *VM) run(ctx context.Context) error {
 					return vm.newRuntimeError("%s", err.Error())
 				}
 			}
+
+		case opcode.OpSetIndex:
+			val := vm.pop()
+			index := vm.pop()
+			left := vm.pop()
+
+			err := vm.executeSetIndexExpression(left, index, val)
+			if err != nil {
+				return vm.newRuntimeError("%s", err.Error())
+			}
 		}
 	}
 	return nil
@@ -948,6 +958,42 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 	default:
 		return fmt.Errorf("index operator not supported: %s", left.Type())
 	}
+}
+
+func (vm *VM) executeSetIndexExpression(left, index, val object.Object) error {
+	switch {
+	case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ:
+		return vm.executeArraySetIndex(left, index, val)
+	case left.Type() == object.HASH_OBJ:
+		return vm.executeHashSetIndex(left, index, val)
+	default:
+		return fmt.Errorf("index assignment not supported: %s", left.Type())
+	}
+}
+
+func (vm *VM) executeArraySetIndex(array, index, val object.Object) error {
+	arrayObject := array.(*object.Array)
+	i := index.(*object.Integer).Value
+	max := int64(len(arrayObject.Elements) - 1)
+
+	if i < 0 || i > max {
+		return fmt.Errorf("index out of bounds: %d", i)
+	}
+
+	arrayObject.Elements[i] = val
+	// Assignment usually evaluates to the assigned value
+	return vm.push(val)
+}
+
+func (vm *VM) executeHashSetIndex(hash, index, val object.Object) error {
+	hashObject := hash.(*object.Hash)
+	key, ok := index.(object.Hashable)
+	if !ok {
+		return fmt.Errorf("unusable as hash key: %s", index.Type())
+	}
+
+	hashObject.Pairs[key.HashKey()] = object.HashPair{Key: index, Value: val}
+	return vm.push(val)
 }
 
 func (vm *VM) executeArrayIndex(array, index object.Object) error {

@@ -51,6 +51,7 @@ const (
 	OpDestructure
 	OpCurrentClosure
 	OpIs
+	OpSetIndex
 )
 
 type Definition struct {
@@ -94,6 +95,7 @@ var definitions = map[Opcode]*Definition{
 	OpDestructure:    {"OpDestructure", []int{1}}, // Number of elements expected
 	OpCurrentClosure: {"OpCurrentClosure", []int{}},
 	OpIs:             {"OpIs", []int{1}}, // Type ID
+	OpSetIndex:       {"OpSetIndex", []int{}},
 }
 
 const (

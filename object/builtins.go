@@ -72,6 +72,37 @@ var Builtins = []struct {
 		}},
 	},
 	{
+		"set",
+		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
+			if len(args) != 3 {
+				return &Critical{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=3", len(args))}
+			}
+
+			switch container := args[0].(type) {
+			case *Array:
+				idxObj, ok := args[1].(*Integer)
+				if !ok {
+					return &Critical{Message: fmt.Sprintf("index to `set` for ARRAY must be INTEGER, got %s", args[1].Type())}
+				}
+				idx := idxObj.Value
+				if idx < 0 || idx >= int64(len(container.Elements)) {
+					return &Critical{Message: fmt.Sprintf("index out of bounds: %d", idx)}
+				}
+				container.Elements[idx] = args[2]
+				return args[2]
+			case *Hash:
+				key, ok := args[1].(Hashable)
+				if !ok {
+					return &Critical{Message: fmt.Sprintf("unusable as hash key: %s", args[1].Type())}
+				}
+				container.Pairs[key.HashKey()] = HashPair{Key: args[1], Value: args[2]}
+				return args[2]
+			default:
+				return &Critical{Message: fmt.Sprintf("argument to `set` not supported, got %s", args[0].Type())}
+			}
+		}},
+	},
+	{
 		"keys",
 		&Builtin{Fn: func(ctx BuiltinContext, args ...Object) Object {
 			if len(args) != 1 {

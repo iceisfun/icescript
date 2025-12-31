@@ -835,24 +835,29 @@ func (p *Parser) curPrecedence() int {
 }
 
 func (p *Parser) parseAssignExpression(left ast.Expression) ast.Expression {
-	stmt := &ast.AssignExpression{Token: p.curToken}
-
-	if n, ok := left.(*ast.Identifier); ok {
-		stmt.Name = n
-	} else {
-		p.errors = append(p.errors, token.ScriptError{
-			Kind:    token.ErrorKindParse,
-			Message: fmt.Sprintf("expected identifier on left side of assignment, got %T", left),
-			Line:    p.curToken.Line,
-		})
-		return nil
-	}
 	// check if the current token is an assign, if so, consume it
 	// Wait, parseAssignExpression is called when we encounter the ASSIGN token as an infix operator.
 	// So p.curToken IS ALREADY the ASSIGN token.
 
-	precedence := p.curPrecedence()            // ASSIGN precedence
-	p.nextToken()                              // move to start of value expression
-	stmt.Value = p.parseExpression(precedence) // was LOWEST, but let's respect precedence usually?
-	return stmt
+	switch leftNode := left.(type) {
+	case *ast.Identifier:
+		stmt := &ast.AssignExpression{Token: p.curToken, Name: leftNode}
+		precedence := p.curPrecedence()            // ASSIGN precedence
+		p.nextToken()                              // move to start of value expression
+		stmt.Value = p.parseExpression(precedence) // was LOWEST, but let's respect precedence usually?
+		return stmt
+	case *ast.IndexExpression:
+		stmt := &ast.IndexAssignExpression{Token: p.curToken, Left: leftNode}
+		precedence := p.curPrecedence()
+		p.nextToken()
+		stmt.Value = p.parseExpression(precedence)
+		return stmt
+	default:
+		p.errors = append(p.errors, token.ScriptError{
+			Kind:    token.ErrorKindParse,
+			Message: fmt.Sprintf("expected identifier or index expression on left side of assignment, got %T", left),
+			Line:    p.curToken.Line,
+		})
+		return nil
+	}
 }
