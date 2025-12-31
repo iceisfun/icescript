@@ -188,6 +188,49 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return nil
 		}
 
+		if node.Operator == "is" {
+			err := c.Compile(node.Left)
+			if err != nil {
+				return err
+			}
+
+			var typeID int
+
+			if ident, ok := node.Right.(*ast.Identifier); ok {
+				switch ident.Value {
+				case "int", "integer":
+					typeID = opcode.VMTypeInteger
+				case "float":
+					typeID = opcode.VMTypeFloat
+				case "bool", "boolean":
+					typeID = opcode.VMTypeBoolean
+				case "null": // If null is parsed as identifier (shouldn't happen if keyword)
+					typeID = opcode.VMTypeNull
+				case "err", "error":
+					typeID = opcode.VMTypeError
+				case "str", "string":
+					typeID = opcode.VMTypeString
+				case "builtin":
+					typeID = opcode.VMTypeBuiltin
+				case "array":
+					typeID = opcode.VMTypeArray
+				case "user":
+					typeID = opcode.VMTypeUser
+				case "tuple":
+					typeID = opcode.VMTypeTuple
+				default:
+					return fmt.Errorf("unknown type for 'is' operator: %s", ident.Value)
+				}
+			} else if _, ok := node.Right.(*ast.NullLiteral); ok {
+				typeID = opcode.VMTypeNull
+			} else {
+				return fmt.Errorf("expected identifier or null after 'is', got %T", node.Right)
+			}
+
+			c.emit(opcode.OpIs, typeID)
+			return nil
+		}
+
 		err := c.Compile(node.Left)
 		if err != nil {
 			return err

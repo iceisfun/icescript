@@ -41,6 +41,7 @@ var precedences = map[token.TokenType]int{
 	token.ASSIGN:   ASSIGN,
 	token.AND:      LOGICAL_AND,
 	token.OR:       LOGICAL_OR,
+	token.IS:       EQUALS,
 }
 
 type (
@@ -99,6 +100,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.ASSIGN, p.parseAssignExpression)
 	p.registerInfix(token.AND, p.parseInfixExpression)
 	p.registerInfix(token.OR, p.parseInfixExpression)
+	p.registerInfix(token.IS, p.parseInfixExpression)
 
 	// Read two tokens, so curToken and peekToken are both set
 	p.nextToken()

@@ -527,6 +527,49 @@ func (vm *VM) run(ctx context.Context) error {
 					return vm.newRuntimeError("%s", err.Error())
 				}
 			}
+		case opcode.OpIs:
+			typeID := int(opcode.ReadUint8(ins[ip+1:]))
+			vm.currentFrame().ip += 1
+
+			obj := vm.pop()
+
+			var match bool
+			switch typeID {
+			case opcode.VMTypeInteger:
+				match = obj.Type() == object.INTEGER_OBJ
+			case opcode.VMTypeFloat:
+				match = obj.Type() == object.FLOAT_OBJ
+			case opcode.VMTypeBoolean:
+				match = obj.Type() == object.BOOLEAN_OBJ
+			case opcode.VMTypeNull:
+				match = obj.Type() == object.NULL_OBJ
+			case opcode.VMTypeError:
+				match = obj.Type() == object.ERROR_OBJ
+			case opcode.VMTypeString:
+				match = obj.Type() == object.STRING_OBJ
+			case opcode.VMTypeBuiltin:
+				match = obj.Type() == object.BUILTIN_OBJ
+			case opcode.VMTypeArray:
+				match = obj.Type() == object.ARRAY_OBJ
+			case opcode.VMTypeUser:
+				match = obj.Type() == object.USER_OBJ
+			case opcode.VMTypeTuple:
+				match = obj.Type() == object.TUPLE_OBJ
+			default:
+				return vm.newRuntimeError("unknown type ID in OpIs: %d", typeID)
+			}
+
+			if match {
+				err := vm.push(True)
+				if err != nil {
+					return vm.newRuntimeError("%s", err.Error())
+				}
+			} else {
+				err := vm.push(False)
+				if err != nil {
+					return vm.newRuntimeError("%s", err.Error())
+				}
+			}
 		}
 	}
 	return nil

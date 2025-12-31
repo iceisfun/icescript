@@ -67,6 +67,7 @@ const (
 	CONTINUE = "CONTINUE"
 	CONST    = "CONST"
 	RANGE    = "RANGE"
+	IS       = "IS"
 )
 
 var keywords = map[string]TokenType{
@@ -84,6 +85,7 @@ var keywords = map[string]TokenType{
 	"continue": CONTINUE,
 	"const":    CONST,
 	"range":    RANGE,
+	"is":       IS,
 }
 
 func LookupIdent(ident string) TokenType {

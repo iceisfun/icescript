@@ -50,6 +50,7 @@ const (
 	OpGetFree
 	OpDestructure
 	OpCurrentClosure
+	OpIs
 )
 
 type Definition struct {
@@ -92,7 +93,24 @@ var definitions = map[Opcode]*Definition{
 	OpGetFree:        {"OpGetFree", []int{1}},
 	OpDestructure:    {"OpDestructure", []int{1}}, // Number of elements expected
 	OpCurrentClosure: {"OpCurrentClosure", []int{}},
+	OpIs:             {"OpIs", []int{1}}, // Type ID
 }
+
+const (
+	VMTypeInteger = iota
+	VMTypeFloat
+	VMTypeBoolean
+	VMTypeNull
+	VMTypeError
+	VMTypeFunction
+	VMTypeString
+	VMTypeBuiltin
+	VMTypeArray
+	VMTypeMap // Not explicitly requested but good to have
+	VMTypeUser
+	VMTypeTuple
+	VMTypeCritical
+)
 
 func Lookup(op byte) (*Definition, error) {
 	def, ok := definitions[Opcode(op)]
