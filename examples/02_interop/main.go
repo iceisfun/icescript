@@ -33,6 +33,7 @@ func main() {
 	// We must use these indices to set the values in the VM later.
 	configSym := c.SymbolTable().Define("Config")
 	callbackSym := c.SymbolTable().Define("Callback")
+	boolFunc := c.SymbolTable().Define("BoolFunc")
 
 	// 3. Compile
 	l := lexer.New(input)
@@ -64,6 +65,19 @@ func main() {
 			b := args[1].(*object.Integer).Value
 			fmt.Printf("[Host] Callback called with %d, %d\n", a, b)
 			return &object.Integer{Value: a + b}
+		},
+	})
+
+	// Test a boolean function
+	machine.SetGlobal(boolFunc.Index, &object.Builtin{
+		Fn: func(ctx object.BuiltinContext, args ...object.Object) object.Object {
+			n := args[0].(*object.Integer).Value
+			if n%2 == 0 {
+				fmt.Println("[Host] BoolFunc: even number -- return true")
+				return &object.Boolean{Value: true}
+			}
+			fmt.Println("[Host] BoolFunc: odd number -- return false")
+			return &object.Boolean{Value: false}
 		},
 	})
 

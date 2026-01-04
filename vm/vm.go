@@ -810,7 +810,21 @@ func (vm *VM) executeComparison(op opcode.Opcode) error {
 		return vm.executeStringComparison(op, left, right)
 	}
 
-	// Handle primitive equality fallback
+	// Handle boolean comparison by value
+	if left.Type() == object.BOOLEAN_OBJ && right.Type() == object.BOOLEAN_OBJ {
+		leftVal := left.(*object.Boolean).Value
+		rightVal := right.(*object.Boolean).Value
+		switch op {
+		case opcode.OpEqual:
+			return vm.push(nativeBoolToBooleanObject(leftVal == rightVal))
+		case opcode.OpNotEqual:
+			return vm.push(nativeBoolToBooleanObject(leftVal != rightVal))
+		default:
+			return fmt.Errorf("unknown operator: %d (%s %s)", op, left.Type(), right.Type())
+		}
+	}
+
+	// Handle primitive equality fallback (null comparison uses pointer equality)
 	if isPrimitive(left.Type()) && isPrimitive(right.Type()) {
 		switch op {
 		case opcode.OpEqual:
@@ -930,12 +944,13 @@ func unwrapTuple(obj object.Object) object.Object {
 func (vm *VM) executeBangOperator() error {
 	operand := unwrapTuple(vm.pop())
 
-	switch operand {
-	case True:
-		return vm.push(False)
-	case False:
+	switch o := operand.(type) {
+	case *object.Boolean:
+		if o.Value {
+			return vm.push(False)
+		}
 		return vm.push(True)
-	case Null:
+	case *object.Null:
 		return vm.push(True)
 	default:
 		return vm.push(False)
