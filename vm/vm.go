@@ -310,7 +310,7 @@ func (vm *VM) run(ctx context.Context) error {
 		case opcode.OpSetGlobal:
 			globalIndex := opcode.ReadUint16(ins[ip+1:])
 			vm.currentFrame().ip += 2
-			vm.globals[globalIndex] = vm.pop()
+			vm.globals[globalIndex] = unwrapTuple(vm.pop())
 
 		case opcode.OpGetGlobal:
 			globalIndex := opcode.ReadUint16(ins[ip+1:])
@@ -324,7 +324,7 @@ func (vm *VM) run(ctx context.Context) error {
 			localIndex := opcode.ReadUint8(ins[ip+1:])
 			vm.currentFrame().ip += 1
 			frame := vm.currentFrame()
-			vm.stack[frame.basePointer+int(localIndex)] = vm.pop()
+			vm.stack[frame.basePointer+int(localIndex)] = unwrapTuple(vm.pop())
 
 		case opcode.OpGetLocal:
 			localIndex := opcode.ReadUint8(ins[ip+1:])
