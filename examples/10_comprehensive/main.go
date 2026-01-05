@@ -9,6 +9,7 @@ import (
 
 	"github.com/iceisfun/icescript/compiler"
 	"github.com/iceisfun/icescript/lexer"
+	"github.com/iceisfun/icescript/object"
 	"github.com/iceisfun/icescript/parser"
 	"github.com/iceisfun/icescript/vm"
 )
@@ -33,12 +34,26 @@ func main() {
 	}
 
 	c := compiler.New()
+	boolFunc := c.SymbolTable().Define("BoolFunc")
+
 	err = c.Compile(program)
 	if err != nil {
 		log.Fatalf("Compiler error: %s", err)
 	}
 
 	machine := vm.New(c.Bytecode())
+	// Test a boolean function
+	machine.SetGlobal(boolFunc.Index, &object.Builtin{
+		Fn: func(ctx object.BuiltinContext, args ...object.Object) object.Object {
+			n := args[0].(*object.Integer).Value
+			if n%2 == 0 {
+				fmt.Println("[Host] BoolFunc: even number -- return true")
+				return &object.Boolean{Value: true}
+			}
+			fmt.Println("[Host] BoolFunc: odd number -- return false")
+			return &object.Boolean{Value: false}
+		},
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

@@ -386,6 +386,16 @@ assert(null is null, "null is null")
 assert((1, 2, 3) is tuple, "(1, 2, 3) is tuple")
 
 // ========================================
+// Boolean Tests
+// ========================================
+assert(!false, "!false")
+assert(!BoolFunc(3), "!BoolFunc(3)")
+assert(BoolFunc(3) == false, "BoolFunc(3) == false")
+assert(!(BoolFunc(3)), "!(BoolFunc(3))")
+assert(true == BoolFunc(2), "true == BoolFunc(2)")
+assert(!!BoolFunc(3) == false, "!!BoolFunc(3) == false")
+
+// ========================================
 // Summary
 // ========================================
 print("")
